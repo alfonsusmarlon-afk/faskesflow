@@ -1,0 +1,185 @@
+{% extends 'base.html' %}
+
+{% block title %}Administrasi Sistem - Klinik SKEM{% endblock %}
+
+{% block content %}
+<section class="page active" id="s-dashboard">
+  <div class="head">
+    <div>
+      <h1>Administrasi sistem</h1>
+      <div class="muted">Kelola akun, poli, persyaratan, dan konfigurasi internal klinik.</div>
+    </div>
+  </div>
+
+  <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));">
+    <div class="card">
+      <div class="label">Poli aktif</div>
+      <div class="metric">{{ metrics.active_clinics | default(8) }}</div>
+    </div>
+    <div class="card">
+      <div class="label">Akun petugas</div>
+      <div class="metric">{{ metrics.staff_accounts | default(12) }}</div>
+    </div>
+    <div class="card">
+      <div class="label">Loket aktif</div>
+      <div class="metric">{{ metrics.active_counters | default(3) }}</div>
+    </div>
+    <div class="card">
+      <div class="label amber">Masalah teknis terbuka</div>
+      <div class="metric">{{ metrics.open_issues | default(1) }}</div>
+    </div>
+    <div class="card">
+      <div class="label purple">Dirujuk ke Faskes 2</div>
+      <div class="metric" style="color:#7c3aed;">{{ metrics.referred_faskes2 }}</div>
+    </div>
+    <div class="card">
+      <div class="label green">Antrean berjalan</div>
+      <div class="metric" style="color:var(--blue);">{{ queue_state.current_code }}</div>
+    </div>
+  </div>
+
+  <!-- MANAJEMEN & PENGATURAN NOMOR ANTREAN KLINIK (ADMIN SISTEM) -->
+  <div class="card" style="margin-top:14px;border-left:5px solid var(--blue);background:#fff;">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+      <div>
+        <h2 class="section-title" style="margin:0;">Manajemen & Pengaturan Nomor Antrean</h2>
+        <div class="muted" style="margin-top:4px;font-size:14px;">
+          Kontrol nomor antrean berjalan di loket klinik, edit nomor langsung, atau reset antrean harian.
+        </div>
+      </div>
+      <span class="status green" style="font-size:13px;padding:4px 10px;">
+        ● Reset Harian Otomatis Aktif
+      </span>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:16px;align-items:start;">
+      <!-- PANEL STATUS ANTREAN SAAT INI -->
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px;">
+        <div class="label" style="margin-bottom:8px;">Nomor Sedang Berjalan</div>
+        <div style="font-size:42px;font-weight:800;color:var(--blue);line-height:1;margin-bottom:8px;">
+          {{ queue_state.current_code }}
+        </div>
+        <div style="font-size:14px;color:#334155;margin-bottom:4px;">
+          <b>Loket:</b> {{ queue_state.counter_name }}
+        </div>
+        <div style="font-size:13.5px;color:#64748b;line-height:1.45;">
+          <b>Reset Terakhir:</b> {{ queue_state.last_reset_date }}<br>
+          <b>Dipanggil Hari Ini:</b> {{ queue_state.total_called_today }} pasien
+        </div>
+      </div>
+
+      <!-- FORM 1: EDIT / UBAH NOMOR ANTREAN -->
+      <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:16px;">
+        <div style="font-weight:700;font-size:15px;color:#0f172a;margin-bottom:6px;">
+          Ubah / Edit Nomor Berjalan
+        </div>
+        <p class="muted" style="font-size:13px;margin:0 0 10px;">
+          Sesuaikan nomor antrean yang sedang dipanggil di monitor pasien.
+        </p>
+        <form method="POST" action="{{ url_for('system.edit_queue') }}" style="display:grid;gap:10px;">
+          <div class="two-cols">
+            <div class="field">
+              <label for="queueCode">Nomor Baru</label>
+              <input id="queueCode" name="queue_code" required value="{{ queue_state.current_code }}" placeholder="Contoh: A-016">
+            </div>
+            <div class="field">
+              <label for="counterName">Loket / Poli</label>
+              <input id="counterName" name="counter_name" value="{{ queue_state.counter_name }}">
+            </div>
+          </div>
+          <button type="submit" class="btn primary" style="justify-content:center;font-weight:700;padding:8px 14px;">
+            Simpan Perubahan Nomor
+          </button>
+        </form>
+      </div>
+
+      <!-- FORM 2: RESET ANTREAN HARI INI -->
+      <div style="background:#fff;border:1px solid #fee2e2;border-radius:8px;padding:16px;">
+        <div style="font-weight:700;font-size:15px;color:#991b1b;margin-bottom:6px;">
+          Reset Antrean Harian
+        </div>
+        <p class="muted" style="font-size:13px;margin:0 0 10px;">
+          Antrean otomatis direset setiap hari baru. Anda juga dapat mereset manual sekarang.
+        </p>
+        <form method="POST" action="{{ url_for('system.reset_queue') }}" onsubmit="return confirm('Apakah Anda yakin ingin mereset nomor antrean klinik hari ini?');" style="display:grid;gap:10px;">
+          <div class="two-cols">
+            <div class="field">
+              <label for="resetPrefix">Prefix Kode</label>
+              <input id="resetPrefix" name="prefix" value="{{ queue_state.prefix }}" maxlength="3" style="text-transform:uppercase;">
+            </div>
+            <div class="field">
+              <label for="resetStart">Mulai Dari</label>
+              <select id="resetStart" name="start_num">
+                <option value="0">0 (Kode: A-000)</option>
+                <option value="1">1 (Kode: A-001)</option>
+              </select>
+            </div>
+          </div>
+          <button type="submit" class="btn" style="background:#fef2f2;border-color:#fca5a5;color:#dc2626;font-weight:700;justify-content:center;padding:8px 14px;">
+            🔄 Reset Nomor Antrean Sekarang
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- DAFTAR MITRA FASKES RUJUKAN (FASKES TINGKAT 2) -->
+  <div class="card" style="margin-top:14px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:12px;">
+      <div>
+        <h2 class="section-title" style="margin:0;">Mitra Faskes Rujukan (Faskes Tingkat 2)</h2>
+        <div class="muted" style="margin-top:4px;font-size:14px;">Jaringan rumah sakit rujukan tingkat lanjutan yang terhubung ke Klinik SKEM.</div>
+      </div>
+      <a href="{{ url_for('system.facilities') }}" class="btn primary">+ Kelola di Persyaratan</a>
+    </div>
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Nama Faskes 2</th>
+            <th>Tipe Fasilitas</th>
+            <th>Kota / Wilayah</th>
+            <th>Kontak Telepon</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for f in faskes2_partners | default([
+            {'id': 'FK2-01', 'name': 'RSUD Dr. Soetomo', 'type': 'Rumah Sakit Umum Daerah (Tipe A)', 'city': 'Surabaya', 'phone': '(031) 5501078', 'status': 'Aktif'},
+            {'id': 'FK2-02', 'name': 'RS Pusat Harapan', 'type': 'Rumah Sakit Rujukan Nasional (Tipe A)', 'city': 'Jakarta Pusat', 'phone': '(021) 5684093', 'status': 'Aktif'},
+            {'id': 'FK2-03', 'name': 'RS Spesialis Sentosa Utama', 'type': 'Rumah Sakit Khusus Spesialistik (Tipe B)', 'city': 'Jakarta Barat', 'phone': '(021) 5698200', 'status': 'Aktif'}
+          ]) %}
+          <tr>
+            <td><b>{{ f.id }}</b></td>
+            <td><b>{{ f.name }}</b></td>
+            <td>{{ f.type }}</td>
+            <td>{{ f.city }}</td>
+            <td>{{ f.phone }}</td>
+            <td><span class="status green">{{ f.status }}</span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:14px;">
+    <h2 class="section-title">Aktivitas sistem</h2>
+    <div class="timeline">
+      {% for act in system_activities | default([
+        {'title': 'Konfigurasi persyaratan diperbarui', 'desc': 'Poli Gigi · Klinik SKEM'},
+        {'title': 'Akun petugas diaktifkan', 'desc': 'Akses dibatasi ke klinik.'}
+      ]) %}
+      <div class="event">
+        <b>{{ act.title }}</b>
+        <div class="muted">{{ act.desc }}</div>
+      </div>
+      {% else %}
+      <div class="empty">Tidak ada aktivitas sistem tercatat.</div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endblock %}
+

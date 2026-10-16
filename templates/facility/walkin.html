@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+
+{% block title %}Pendaftaran Walk-in - Klinik SKEM{% endblock %}
+
+{% block content %}
+<section class="page active" id="f-walkin">
+  <div class="head">
+    <div>
+      <h1>Pendaftaran walk-in</h1>
+      <div class="muted">Pendaftaran oleh petugas untuk pasien yang datang langsung.</div>
+    </div>
+  </div>
+
+  <form class="card" id="walkinForm" method="POST" action="{{ url_for('facility.walkin') }}">
+    <div class="grid form">
+      <div class="field">
+        <label for="walkinName">Nama pasien</label>
+        <input id="walkinName" name="patient_name" required placeholder="Nama lengkap pasien">
+      </div>
+      <div class="field">
+        <label for="walkinId">Nomor identitas demo</label>
+        <input id="walkinId" name="identity_number" required placeholder="NIK / No. Identitas">
+      </div>
+      <div class="field">
+        <label for="walkinService">Layanan</label>
+        <select id="walkinService" name="service">
+          <option value="Poli Umum">Poli Umum</option>
+          <option value="Poli Gigi">Poli Gigi</option>
+          <option value="KIA">KIA</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="walkinPayment">Pembiayaan</label>
+        <select id="walkinPayment" name="payment_method">
+          <option value="Mandiri">Mandiri</option>
+          <option value="BPJS Demo">BPJS Demo</option>
+        </select>
+      </div>
+    </div>
+    <div class="actions">
+      <button type="submit" class="btn primary">Simpan dan verifikasi</button>
+    </div>
+  </form>
+</section>
+{% endblock %}
+

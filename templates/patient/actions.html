@@ -1,0 +1,96 @@
+{% extends 'base.html' %}
+
+{% block title %}Tindakan yang Diperlukan - Klinik SKEM{% endblock %}
+
+{% block content %}
+<section class="page active" id="p-actions">
+  <div class="head">
+    <div>
+      <h1>Tindakan yang diperlukan</h1>
+      <div class="muted">Lengkapi kekurangan agar pendaftaran dapat diproses.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="list">
+      {% for action in required_actions %}
+      <div class="row">
+        <div>
+          <b>{{ action.title }}</b>
+          <span class="muted">{{ action.code }} · {{ action.service }} · {{ action.reason }}</span>
+        </div>
+        <button class="btn primary btn-open-upload" type="button"
+          data-code="{{ action.code }}"
+          data-title="{{ action.title }}"
+          data-service="{{ action.service }}">
+          Pilih berkas
+        </button>
+      </div>
+      {% else %}
+      <div class="empty">Tidak ada tindakan perbaikan yang diperlukan saat ini. Seluruh berkas pendaftaran Anda telah lengkap.</div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+
+<!-- MODAL UNGGAH BERKAS PERBAIKAN -->
+<div class="modal" id="uploadActionModal">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h2 id="modalUploadTitle">Unggah Ulang Dokumen</h2>
+      <button class="icon-btn" id="closeUploadModal" type="button">×</button>
+    </div>
+    <form method="POST" action="{{ url_for('patient.upload_action') }}" enctype="multipart/form-data">
+      <input type="hidden" id="uploadCode" name="code" value="FF-0148">
+      
+      <p class="notice" style="margin-top:0;">
+        Silakan unggah dokumen yang jelas dan terbaca untuk mempercepat verifikasi petugas administrasi.
+      </p>
+
+      <div class="grid form" style="grid-template-columns:1fr;gap:12px;">
+        <div class="field">
+          <label for="uploadFile">Pilih Dokumen / Foto Identitas</label>
+          <input id="uploadFile" name="document_file" type="file" required>
+        </div>
+
+        <div class="field">
+          <label for="uploadNotes">Catatan untuk Petugas (Opsional)</label>
+          <textarea id="uploadNotes" name="notes" rows="2" placeholder="Contoh: Foto ulang KTP dengan pencahayaan jelas."></textarea>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button type="button" class="btn" id="btnCancelUpload">Batal</button>
+        <button type="submit" class="btn primary">Kirim Berkas Perbaikan</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const uploadModal = document.getElementById('uploadActionModal');
+const closeUploadBtn = document.getElementById('closeUploadModal');
+const cancelUploadBtn = document.getElementById('btnCancelUpload');
+
+document.querySelectorAll('.btn-open-upload').forEach(b => {
+  b.onclick = () => {
+    document.getElementById('uploadCode').value = b.dataset.code || 'FF-0148';
+    document.getElementById('modalUploadTitle').textContent = b.dataset.title || 'Unggah Ulang Dokumen';
+    if(uploadModal) uploadModal.classList.add('show');
+  };
+});
+
+if(closeUploadBtn && uploadModal){
+  closeUploadBtn.onclick = () => uploadModal.classList.remove('show');
+}
+if(cancelUploadBtn && uploadModal){
+  cancelUploadBtn.onclick = () => uploadModal.classList.remove('show');
+}
+
+window.onclick = e => {
+  if(e.target === uploadModal) uploadModal.classList.remove('show');
+};
+</script>
+{% endblock %}

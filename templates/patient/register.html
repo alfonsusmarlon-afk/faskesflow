@@ -1,0 +1,168 @@
+{% extends 'base.html' %}
+
+{% block title %}Pendaftaran Baru - Klinik SKEM{% endblock %}
+
+{% block content %}
+<section class="page active" id="p-register">
+  <div class="head">
+    <div>
+      <h1>Pendaftaran baru</h1>
+      <div class="muted">Ajukan kunjungan menggunakan profil yang tersimpan.</div>
+    </div>
+  </div>
+
+  <form class="card" id="patientForm" method="POST" action="{{ url_for('patient.register') }}" enctype="multipart/form-data">
+    <div class="quickbar">
+      <div class="quickbar-title">Isi cepat dari profil tersimpan</div>
+      <div class="profile-choices" id="profileChoices">
+        {% if saved_profiles %}
+          {% for key, p in saved_profiles.items() %}
+          <button type="button" class="profile-choice" data-profile="{{ key }}">
+            <span class="check">✓</span>
+            <strong>{{ p.name }}</strong>
+            <span>{{ p.badge }}</span>
+            <span>{{ p.dob_text }}</span>
+          </button>
+          {% endfor %}
+        {% else %}
+          <button type="button" class="profile-choice" data-profile="dinda">
+            <span class="check">✓</span>
+            <strong>Dinda Prameswari</strong>
+            <span>Profil utama · DEMO-NIK ••••1182</span>
+            <span>12 Mei 1998</span>
+          </button>
+          <button type="button" class="profile-choice" data-profile="budi">
+            <span class="check">✓</span>
+            <strong>Budi Santoso</strong>
+            <span>Keluarga · DEMO-NIK ••••2041</span>
+            <span>4 Februari 1968</span>
+          </button>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="grid form">
+      <div class="field">
+        <label for="regName">Nama lengkap</label>
+        <input id="regName" name="name" required placeholder="Nama sesuai identitas">
+      </div>
+      <div class="field">
+        <label for="regId">Nomor identitas demo</label>
+        <input id="regId" name="identity_number" required placeholder="Contoh: DEMO-3173011182">
+      </div>
+      <div class="field">
+        <label for="regPhone">Nomor telepon</label>
+        <input id="regPhone" name="phone" required placeholder="08xx-xxxx-xxxx">
+      </div>
+      <div class="field">
+        <label for="regDob">Tanggal lahir</label>
+        <input id="regDob" name="dob" type="date" required>
+      </div>
+      <div class="field">
+        <label for="regHospital">Fasilitas Klinik</label>
+        <select id="regHospital" name="hospital">
+          <option value="Klinik SKEM" selected>Klinik SKEM</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="regService">Layanan</label>
+        <select id="regService" name="service">
+          <option value="Poli Umum">Poli Umum</option>
+          <option value="Poli Gigi">Poli Gigi</option>
+          <option value="KIA">KIA</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="regVisitDate">Tanggal kunjungan</label>
+        <input id="regVisitDate" name="visit_date" type="date" value="{{ visit_date | default('2026-10-15') }}">
+      </div>
+      <div class="field">
+        <label for="regPayment">Pembiayaan</label>
+        <select id="regPayment" name="payment_method">
+          <option value="Mandiri">Mandiri</option>
+          <option value="BPJS Demo">BPJS Demo</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="regDoc">Dokumen pendukung</label>
+        <input id="regDoc" name="supporting_document" type="file">
+      </div>
+      <div class="field wide">
+        <label for="regNotes">Catatan administrasi</label>
+        <textarea id="regNotes" name="notes" rows="3" placeholder="Informasi tambahan atau riwayat rujukan singkat..."></textarea>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button type="button" class="btn demo" id="btnSaveDraft">Simpan draft</button>
+      <button type="submit" class="btn primary">Kirim pendaftaran</button>
+    </div>
+  </form>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const profiles = {{ saved_profiles | default({
+  'dinda': {'name':'Dinda Prameswari','id':'DEMO-3173011182','phone':'0812-0000-1182','dob':'1998-05-12'},
+  'budi': {'name':'Budi Santoso','id':'DEMO-3173022041','phone':'0812-0000-2041','dob':'1968-02-04'}
+}) | tojson | safe }};
+
+document.querySelectorAll('.profile-choice').forEach(card => {
+  card.onclick = () => {
+    document.querySelectorAll('.profile-choice').forEach(x => x.classList.remove('selected'));
+    card.classList.add('selected');
+    const p = profiles[card.dataset.profile];
+    if(p){
+      document.getElementById('regName').value = p.name;
+      document.getElementById('regId').value = p.id;
+      document.getElementById('regPhone').value = p.phone;
+      document.getElementById('regDob').value = p.dob;
+      toast('Data ' + p.name + ' berhasil diisi.');
+    }
+  };
+});
+
+// Draft Save & Restore
+const btnSaveDraft = document.getElementById('btnSaveDraft');
+if(btnSaveDraft){
+  btnSaveDraft.onclick = () => {
+    const draft = {
+      name: document.getElementById('regName').value,
+      id: document.getElementById('regId').value,
+      phone: document.getElementById('regPhone').value,
+      dob: document.getElementById('regDob').value,
+      service: document.getElementById('regService').value,
+      visitDate: document.getElementById('regVisitDate').value,
+      payment: document.getElementById('regPayment').value,
+      notes: document.getElementById('regNotes').value
+    };
+    localStorage.setItem('rs_sentosa_patient_draft', JSON.stringify(draft));
+    toast('Draft formulir berhasil disimpan.');
+  };
+}
+
+// Restore draft on page load
+try {
+  const savedDraft = localStorage.getItem('rs_sentosa_patient_draft');
+  if(savedDraft){
+    const d = JSON.parse(savedDraft);
+    if(d.name && !document.getElementById('regName').value) document.getElementById('regName').value = d.name;
+    if(d.id && !document.getElementById('regId').value) document.getElementById('regId').value = d.id;
+    if(d.phone && !document.getElementById('regPhone').value) document.getElementById('regPhone').value = d.phone;
+    if(d.dob && !document.getElementById('regDob').value) document.getElementById('regDob').value = d.dob;
+    if(d.visitDate && document.getElementById('regVisitDate')) document.getElementById('regVisitDate').value = d.visitDate;
+    if(d.service && document.getElementById('regService')) document.getElementById('regService').value = d.service;
+    if(d.payment && document.getElementById('regPayment')) document.getElementById('regPayment').value = d.payment;
+    if(d.notes && document.getElementById('regNotes')) document.getElementById('regNotes').value = d.notes;
+  }
+} catch(e){}
+
+const pForm = document.getElementById('patientForm');
+if(pForm){
+  pForm.addEventListener('submit', () => {
+    localStorage.removeItem('rs_sentosa_patient_draft');
+  });
+}
+</script>
+{% endblock %}

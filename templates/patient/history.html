@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+
+{% block title %}Riwayat Pendaftaran - Klinik SKEM{% endblock %}
+
+{% block content %}
+<section class="page active" id="p-history">
+  <div class="head">
+    <div>
+      <h1>Riwayat pendaftaran</h1>
+      <div class="muted">Riwayat administrasi sesuai profil yang Anda kelola.</div>
+    </div>
+  </div>
+
+  <div class="card table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Tanggal</th>
+          <th>Layanan</th>
+          <th>Fasilitas Klinik</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for h in registration_history %}
+        <tr>
+          <td><b>{{ h.id }}</b></td>
+          <td>{{ h.date }}</td>
+          <td>{{ h.service }}</td>
+          <td>{{ h.hospital }}</td>
+          <td>
+            {% if h.status == 'Dirujuk ke Faskes 2' or h.status == 'Terkirim ke Faskes 2' %}
+              <span class="status purple">Terkirim ke Faskes 2</span>
+            {% elif h.status == 'Selesai di Faskes Ini' %}
+              <span class="status green">Selesai di {{ h.hospital | default('Klinik SKEM') }}</span>
+            {% else %}
+              <span class="status {{ h.status_class }}">{{ h.status }}</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% if h.status == 'Dirujuk ke Faskes 2' or h.status == 'Terkirim ke Faskes 2' %}
+        <tr style="background:#faf5ff;">
+          <td colspan="5" style="padding:12px 16px;color:#4c1d95;font-size:14.5px;border-bottom:2px solid #ddd6fe;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span style="font-size:18px;">🏥</span>
+              <b>Data & berkas rujukan Anda telah terkirim ke Faskes Tingkat 2: {{ h.target_faskes | default(h.hospital) }} ({{ h.target_clinic | default(h.service) }}) - No. Rujukan: {{ h.ref_id | default(h.id) }}.</b>
+            </div>
+          </td>
+        </tr>
+        {% endif %}
+        {% else %}
+        <tr>
+          <td colspan="5" class="empty">Belum ada riwayat pendaftaran.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}
+

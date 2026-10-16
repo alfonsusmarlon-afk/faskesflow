@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+
+{% block title %}Riwayat Operasional - Klinik SKEM{% endblock %}
+
+{% block content %}
+<section class="page active" id="f-history">
+  <div class="head">
+    <div>
+      <h1>Riwayat operasional</h1>
+      <div class="muted">Riwayat administratif sesuai kewenangan petugas Klinik SKEM.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="timeline">
+      {% for item in operational_history %}
+      <div class="event">
+        <b>{{ item.title }}</b>
+        <div class="muted">{{ item.desc }}</div>
+      </div>
+      {% else %}
+      <div class="empty">Belum ada riwayat aktivitas operasional tercatat.</div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endblock %}
+

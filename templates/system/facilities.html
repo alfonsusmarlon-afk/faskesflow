@@ -1,0 +1,279 @@
+{% extends 'base.html' %}
+
+{% block title %}Persyaratan Administrasi - Klinik SKEM{% endblock %}
+
+{% block content %}
+<section class="page active" id="s-facilities">
+  <div class="head">
+    <div>
+      <h1>Persyaratan administrasi</h1>
+      <div class="muted">Atur dokumen yang diperlukan untuk setiap poli di Klinik SKEM.</div>
+    </div>
+    <button class="btn primary" id="btnOpenAddReq" type="button">+ Tambah persyaratan</button>
+  </div>
+
+  <div class="card table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Poli</th>
+          <th>Persyaratan</th>
+          <th>Wajib</th>
+          <th>Status</th>
+          <th>Aksi</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for req in requirements %}
+        <tr>
+          <td><b>{{ req.clinic }}</b></td>
+          <td>{{ req.reqs }}</td>
+          <td>{{ req.mandatory }}</td>
+          <td><span class="status {{ req.status_class }}">{{ req.status }}</span></td>
+          <td>
+            <button class="btn btn-edit-req" type="button"
+              data-index="{{ loop.index0 }}"
+              data-clinic="{{ req.clinic }}"
+              data-reqs="{{ req.reqs }}"
+              data-mandatory="{{ req.mandatory }}"
+              data-status="{{ req.status }}">
+              Ubah
+            </button>
+            <form method="POST" action="{{ url_for('system.delete_facility_req', index=loop.index0) }}" style="display:inline;" onsubmit="return confirm('Hapus persyaratan {{ req.clinic }}?');">
+              <button class="btn danger" type="submit">Hapus</button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="5" class="empty">Belum ada persyaratan administrasi yang diatur.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+  </div>
+
+  <!-- TABEL MITRA FASKES RUJUKAN (FASKES TINGKAT 2) -->
+  <div class="head" style="margin-top:32px;">
+    <div>
+      <h2 class="section-title" style="margin:0;">Mitra Faskes Rujukan (Faskes Tingkat 2)</h2>
+      <div class="muted" style="margin-top:4px;">Daftar rumah sakit rujukan tingkat 2 yang bekerja sama untuk menerima pasien rujukan dari Klinik SKEM.</div>
+    </div>
+    <button class="btn primary" id="btnOpenAddFaskes2" type="button">+ Tambah Faskes 2</button>
+  </div>
+
+  <div class="card table-wrap" style="margin-top:10px;">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Kode</th>
+          <th>Nama Faskes 2</th>
+          <th>Tipe Rumah Sakit / Faskes</th>
+          <th>Kota / Wilayah</th>
+          <th>Kontak Telepon</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for f in faskes2_partners | default([
+          {'id': 'FK2-01', 'name': 'RSUD Dr. Soetomo', 'type': 'Rumah Sakit Umum Daerah (Tipe A)', 'city': 'Surabaya', 'phone': '(031) 5501078', 'status': 'Aktif'},
+          {'id': 'FK2-02', 'name': 'RS Pusat Harapan', 'type': 'Rumah Sakit Rujukan Nasional (Tipe A)', 'city': 'Jakarta Pusat', 'phone': '(021) 5684093', 'status': 'Aktif'},
+          {'id': 'FK2-03', 'name': 'RS Spesialis Sentosa Utama', 'type': 'Rumah Sakit Khusus Spesialistik (Tipe B)', 'city': 'Jakarta Barat', 'phone': '(021) 5698200', 'status': 'Aktif'}
+        ]) %}
+        <tr>
+          <td><b>{{ f.id }}</b></td>
+          <td><b>{{ f.name }}</b></td>
+          <td>{{ f.type }}</td>
+          <td>{{ f.city }}</td>
+          <td>{{ f.phone }}</td>
+          <td><span class="status green">{{ f.status }}</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- MODAL TAMBAH PERSYARATAN -->
+<div class="modal" id="addReqModal">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h2>Tambah Persyaratan Administrasi</h2>
+      <button class="icon-btn" id="closeAddReqModal" type="button">×</button>
+    </div>
+    <form method="POST" action="{{ url_for('system.add_facility_req') }}">
+      <div class="grid form">
+        <div class="field">
+          <label for="addReqClinic">Poli / Unit Layanan</label>
+          <input id="addReqClinic" name="clinic" required placeholder="Contoh: Poli Anak">
+        </div>
+
+        <div class="field">
+          <label for="addReqMandatory">Sifat Persyaratan</label>
+          <select id="addReqMandatory" name="mandatory">
+            <option value="Ya">Wajib (Ya)</option>
+            <option value="Tidak">Opsional (Tidak)</option>
+          </select>
+        </div>
+
+        <div class="field wide">
+          <label for="addReqText">Daftar Dokumen Persyaratan</label>
+          <textarea id="addReqText" name="reqs" rows="2" required placeholder="Contoh: KTP, KK, dan Buku KIA"></textarea>
+        </div>
+
+        <div class="field">
+          <label for="addReqStatus">Status</label>
+          <select id="addReqStatus" name="status">
+            <option value="Aktif">Aktif</option>
+            <option value="Nonaktif">Nonaktif</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button type="button" class="btn" id="btnCancelAddReq">Batal</button>
+        <button type="submit" class="btn primary">Simpan Persyaratan</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL UBAH PERSYARATAN -->
+<div class="modal" id="editReqModal">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h2>Ubah Persyaratan Administrasi</h2>
+      <button class="icon-btn" id="closeEditReqModal" type="button">×</button>
+    </div>
+    <form method="POST" id="editReqForm" action="">
+      <div class="grid form">
+        <div class="field">
+          <label for="editReqClinic">Poli / Unit Layanan</label>
+          <input id="editReqClinic" name="clinic" required>
+        </div>
+
+        <div class="field">
+          <label for="editReqMandatory">Sifat Persyaratan</label>
+          <select id="editReqMandatory" name="mandatory">
+            <option value="Ya">Wajib (Ya)</option>
+            <option value="Tidak">Opsional (Tidak)</option>
+          </select>
+        </div>
+
+        <div class="field wide">
+          <label for="editReqText">Daftar Dokumen Persyaratan</label>
+          <textarea id="editReqText" name="reqs" rows="2" required></textarea>
+        </div>
+
+        <div class="field">
+          <label for="editReqStatus">Status</label>
+          <select id="editReqStatus" name="status">
+            <option value="Aktif">Aktif</option>
+            <option value="Nonaktif">Nonaktif</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button type="button" class="btn" id="btnCancelEditReq">Batal</button>
+        <button type="submit" class="btn primary">Simpan Perubahan</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL TAMBAH MITRA FASKES 2 -->
+<div class="modal" id="addFaskes2Modal">
+  <div class="modal-box" style="max-width:540px;">
+    <div class="modal-head">
+      <h2>Tambah Mitra Faskes Tingkat 2</h2>
+      <button class="icon-btn" id="closeAddFaskes2Modal" type="button">×</button>
+    </div>
+    <form method="POST" action="{{ url_for('system.add_faskes2') }}">
+      <div class="grid form">
+        <div class="field wide">
+          <label for="newFaskesName">Nama Fasilitas / Rumah Sakit *</label>
+          <input id="newFaskesName" name="name" required placeholder="Contoh: RSUD Dr. Soetomo">
+        </div>
+
+        <div class="field">
+          <label for="newFaskesType">Tipe Fasilitas / Kelas</label>
+          <input id="newFaskesType" name="type" required placeholder="Contoh: RS Umum Daerah (Tipe A)">
+        </div>
+
+        <div class="field">
+          <label for="newFaskesCity">Kota / Wilayah</label>
+          <input id="newFaskesCity" name="city" required placeholder="Contoh: Surabaya">
+        </div>
+
+        <div class="field">
+          <label for="newFaskesPhone">Nomor Telepon / Hotline</label>
+          <input id="newFaskesPhone" name="phone" placeholder="Contoh: (031) 5501078">
+        </div>
+
+        <div class="field">
+          <label for="newFaskesStatus">Status Kemitraan</label>
+          <select id="newFaskesStatus" name="status">
+            <option value="Aktif">Aktif</option>
+            <option value="Nonaktif">Nonaktif</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="actions" style="margin-top:16px;">
+        <button type="button" class="btn" id="btnCancelAddFaskes2">Batal</button>
+        <button type="submit" class="btn primary">Simpan Mitra Faskes 2</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const addReqModal = document.getElementById('addReqModal');
+const openAddReq = document.getElementById('btnOpenAddReq');
+const closeAddReq = document.getElementById('closeAddReqModal');
+const cancelAddReq = document.getElementById('btnCancelAddReq');
+
+if(openAddReq && addReqModal) openAddReq.onclick = () => addReqModal.classList.add('show');
+if(closeAddReq && addReqModal) closeAddReq.onclick = () => addReqModal.classList.remove('show');
+if(cancelAddReq && addReqModal) cancelAddReq.onclick = () => addReqModal.classList.remove('show');
+
+const editReqModal = document.getElementById('editReqModal');
+const closeEditReq = document.getElementById('closeEditReqModal');
+const cancelEditReq = document.getElementById('btnCancelEditReq');
+const editReqForm = document.getElementById('editReqForm');
+
+document.querySelectorAll('.btn-edit-req').forEach(b => {
+  b.onclick = () => {
+    const idx = b.dataset.index;
+    document.getElementById('editReqClinic').value = b.dataset.clinic || '';
+    document.getElementById('editReqText').value = b.dataset.reqs || '';
+    document.getElementById('editReqMandatory').value = b.dataset.mandatory || 'Ya';
+    document.getElementById('editReqStatus').value = b.dataset.status || 'Aktif';
+
+    editReqForm.action = `/system/facilities/edit/${idx}`;
+    if(editReqModal) editReqModal.classList.add('show');
+  };
+});
+
+if(closeEditReq && editReqModal) closeEditReq.onclick = () => editReqModal.classList.remove('show');
+if(cancelEditReq && editReqModal) cancelEditReq.onclick = () => editReqModal.classList.remove('show');
+
+// Faskes 2 Modal
+const addFaskes2Modal = document.getElementById('addFaskes2Modal');
+const openAddFaskes2 = document.getElementById('btnOpenAddFaskes2');
+const closeAddFaskes2 = document.getElementById('closeAddFaskes2Modal');
+const cancelAddFaskes2 = document.getElementById('btnCancelAddFaskes2');
+
+if(openAddFaskes2 && addFaskes2Modal) openAddFaskes2.onclick = () => addFaskes2Modal.classList.add('show');
+if(closeAddFaskes2 && addFaskes2Modal) closeAddFaskes2.onclick = () => addFaskes2Modal.classList.remove('show');
+if(cancelAddFaskes2 && addFaskes2Modal) cancelAddFaskes2.onclick = () => addFaskes2Modal.classList.remove('show');
+
+window.onclick = e => {
+  if(e.target === addReqModal) addReqModal.classList.remove('show');
+  if(e.target === editReqModal) editReqModal.classList.remove('show');
+  if(e.target === addFaskes2Modal) addFaskes2Modal.classList.remove('show');
+};
+</script>
+{% endblock %}

@@ -1,0 +1,41 @@
+# Berkas lokal & database yang dikecualikan sesuai permintaan
+database.py
+diagnose.py
+klinik_skem.db
+*.db
+*.sqlite
+*.sqlite3
+
+# Konfigurasi rahasia & autentikasi pihak ketiga
+google_oauth_config.json
+.env
+.env.*
+
+# Executables & binary tool pihak ketiga
+ngrok.exe
+*.exe
+
+# Python Cache & Bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+
+# Virtual Environment
+venv/
+.venv/
+env/
+ENV/
+
+# Logs & Temporary files
+*.log
+*.tmp
+*.bak
+
+# Editor & OS Metadata
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+Desktop.ini

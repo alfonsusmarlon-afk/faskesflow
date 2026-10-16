@@ -1,0 +1,118 @@
+{% extends 'base.html' %}
+
+{% block title %}Akun dan Akses - Klinik SKEM{% endblock %}
+
+{% block content %}
+<section class="page active" id="s-users">
+  <div class="head">
+    <div>
+      <h1>Akun dan akses</h1>
+      <div class="muted">Atur role dan cakupan pengguna di klinik.</div>
+    </div>
+    <button class="btn primary" id="btnOpenAddUser" type="button">+ Tambah akun</button>
+  </div>
+
+  <div class="card table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Akun (Email)</th>
+          <th>Nama</th>
+          <th>Role</th>
+          <th>Cakupan</th>
+          <th>Status</th>
+          <th>Aksi</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in users_list %}
+        <tr>
+          <td><b>{{ u.username }}</b></td>
+          <td>{{ u.name | default(u.username.split('@')[0].capitalize()) }}</td>
+          <td>{{ u.role }}</td>
+          <td>{{ u.scope }}</td>
+          <td>
+            <span class="status {{ 'green' if u.status == 'Aktif' else 'amber' }}">{{ u.status }}</span>
+          </td>
+          <td>
+            <form method="POST" action="{{ url_for('system.toggle_user', username=u.username) }}" style="display:inline;">
+              <button class="btn" type="submit">
+                {{ 'Nonaktifkan' if u.status == 'Aktif' else 'Aktifkan' }}
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="6" class="empty">Belum ada akun terdaftar.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- MODAL TAMBAH AKUN PENGGUNA -->
+<div class="modal" id="addUserModal">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h2>Tambah Akun Pengguna Baru</h2>
+      <button class="icon-btn" id="closeAddUserModal" type="button">×</button>
+    </div>
+    <form method="POST" action="{{ url_for('system.add_user') }}">
+      <div class="grid form">
+        <div class="field wide">
+          <label for="newUserName">Nama Lengkap</label>
+          <input id="newUserName" name="name" required placeholder="Nama lengkap petugas / staf">
+        </div>
+
+        <div class="field">
+          <label for="newUserEmail">Alamat Email (Username)</label>
+          <input id="newUserEmail" name="email" type="email" required placeholder="petugas@klinik-skem.id">
+        </div>
+
+        <div class="field">
+          <label for="newUserRole">Role Hak Akses</label>
+          <select id="newUserRole" name="role">
+            <option value="facility">Petugas Klinik</option>
+            <option value="system">Admin Sistem</option>
+            <option value="patient">Pasien</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="newUserScope">Cakupan Wilayah / Faskes</label>
+          <input id="newUserScope" name="scope" value="Klinik SKEM" required>
+        </div>
+
+        <div class="field">
+          <label for="newUserPassword">Kata Sandi Awal</label>
+          <input id="newUserPassword" name="password" type="password" required value="password123">
+        </div>
+      </div>
+
+      <div class="actions">
+        <button type="button" class="btn" id="btnCancelAddUser">Batal</button>
+        <button type="submit" class="btn primary">Buat Akun</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const addUserModal = document.getElementById('addUserModal');
+const openAddUser = document.getElementById('btnOpenAddUser');
+const closeAddUser = document.getElementById('closeAddUserModal');
+const cancelAddUser = document.getElementById('btnCancelAddUser');
+
+if(openAddUser && addUserModal) openAddUser.onclick = () => addUserModal.classList.add('show');
+if(closeAddUser && addUserModal) closeAddUser.onclick = () => addUserModal.classList.remove('show');
+if(cancelAddUser && addUserModal) cancelAddUser.onclick = () => addUserModal.classList.remove('show');
+
+window.onclick = e => {
+  if(e.target === addUserModal) addUserModal.classList.remove('show');
+};
+</script>
+{% endblock %}

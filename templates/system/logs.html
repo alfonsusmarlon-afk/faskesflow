@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+
+{% block title %}Log Teknis Sistem - Klinik SKEM{% endblock %}
+
+{% block content %}
+<section class="page active" id="s-logs">
+  <div class="head">
+    <div>
+      <h1>Log teknis</h1>
+      <div class="muted">Log minimum untuk pemantauan, tanpa menampilkan dokumen kesehatan.</div>
+    </div>
+  </div>
+
+  <div class="card table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Waktu</th>
+          <th>Kategori</th>
+          <th>Peristiwa</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for l in system_logs %}
+        <tr>
+          <td>{{ l.time }}</td>
+          <td><b>{{ l.category }}</b></td>
+          <td>{{ l.event }}</td>
+          <td><span class="status {{ l.status_class }}">{{ l.status }}</span></td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="4" class="empty">Tidak ada catatan log sistem.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}
+

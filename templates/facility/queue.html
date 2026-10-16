@@ -1,0 +1,169 @@
+{% extends 'base.html' %}
+
+{% block title %}Antrean Terpadu - Klinik SKEM{% endblock %}
+
+{% block content %}
+<section class="page active" id="f-queue">
+  <div class="head">
+    <div>
+      <h1>Antrean terpadu</h1>
+      <div class="muted">Pasien online dan walk-in pada antrean yang sama.</div>
+    </div>
+    <a href="{{ url_for('facility.walkin') }}" class="btn primary">+ Tambah walk-in</a>
+  </div>
+
+  <div class="queue-now">
+    <div>
+      <div class="label">Nomor antrean sedang berjalan</div>
+      <div class="muted">Poli Umum · Loket 1</div>
+    </div>
+    <div class="number" id="runningQueue">{{ running_queue | default('A-016') }}</div>
+    <button class="btn" id="nextQueue" type="button">Panggil berikutnya</button>
+  </div>
+
+  <div class="card table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>No.</th>
+          <th>Pasien</th>
+          <th>Sumber</th>
+          <th>Layanan</th>
+          <th>Status</th>
+          <th>Aksi</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for q in queue_list %}
+        <tr>
+          <td><b>{{ q.queue_no }}</b></td>
+          <td>
+            <button class="patient-link viewPatient" data-id="{{ q.patient_id }}" type="button">{{ q.patient_name }}</button>
+          </td>
+          <td>{{ q.source }}</td>
+          <td>{{ q.service }}</td>
+          <td><span class="status {{ q.status_class }}">{{ q.status }}</span></td>
+          <td>
+            <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+              {% if q.can_call %}
+              <button class="btn primary queueCall" data-queue="{{ q.queue_no }}" type="button">Panggil</button>
+              {% elif q.status != 'Selesai di Faskes Ini' and q.status != 'Dirujuk ke Faskes 2' %}
+              <form method="POST" action="{{ url_for('facility.admit_queue', queue_no=q.queue_no) }}" style="display:inline;">
+                <button class="btn" type="submit">Masukkan antrean</button>
+              </form>
+              {% endif %}
+
+              {% if q.status == 'Dirujuk ke Faskes 2' %}
+                <span class="status purple">Dirujuk ke Faskes 2</span>
+              {% elif q.status == 'Selesai di Faskes Ini' %}
+                <span class="status green">Selesai di Faskes Ini</span>
+              {% else %}
+                <form method="POST" action="{{ url_for('facility.complete_visit') }}" style="display:inline;" onsubmit="return confirm('Tandai kunjungan {{ q.patient_name }} selesai di faskes ini?');">
+                  <input type="hidden" name="patient_id" value="{{ q.patient_id }}">
+                  <input type="hidden" name="patient_name" value="{{ q.patient_name }}">
+                  <input type="hidden" name="queue_no" value="{{ q.queue_no }}">
+                  <button class="btn" type="submit" style="color:#15803d;border-color:#86efac;background:#f0fdf4;" title="Selesaikan kunjungan di faskes ini">
+                    ✓ Selesai di Faskes Ini
+                  </button>
+                </form>
+
+                <button class="btn btn-refer-patient" type="button"
+                  data-id="{{ q.patient_id }}"
+                  data-name="{{ q.patient_name }}"
+                  data-service="{{ q.service }}"
+                  data-queue="{{ q.queue_no }}"
+                  style="color:#6d28d9;border-color:#c4b5fd;background:#f5f3ff;"
+                  title="Rujuk pasien ke Faskes Tingkat 2">
+                  ↗ Rujuk ke Faskes Lanjutan
+                </button>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="6" class="empty">Tidak ada antrean saat ini.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const runningQueue = document.getElementById('runningQueue');
+const nextQueue = document.getElementById('nextQueue');
+
+document.querySelectorAll('.queueCall').forEach(b => {
+  b.onclick = async () => {
+    const qNo = b.dataset.queue;
+    b.disabled = true;
+    try {
+      const resp = await fetch('/facility/queue/call/' + encodeURIComponent(qNo), {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+      });
+      const data = await resp.json();
+      if(runningQueue) runningQueue.textContent = data.running_queue;
+      toast(data.message || ('Nomor ' + qNo + ' sedang dipanggil ke Loket 1.'));
+      const row = b.closest('tr');
+      if (row) {
+        const statusSpan = row.querySelector('.status');
+        if (statusSpan) {
+          statusSpan.className = 'status green';
+          statusSpan.textContent = 'Dipanggil ke Loket 1';
+        }
+        row.style.background = '#f0fdf4';
+      }
+    } catch(e) {
+      if(runningQueue) runningQueue.textContent = qNo;
+      toast('Nomor ' + qNo + ' sedang dipanggil ke Loket 1.');
+    } finally {
+      b.disabled = false;
+    }
+  };
+});
+
+if(nextQueue && runningQueue){
+  nextQueue.onclick = async () => {
+    nextQueue.disabled = true;
+    try {
+      const resp = await fetch('{{ url_for("facility.next_queue") }}', {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+      });
+      const data = await resp.json();
+      if(runningQueue) runningQueue.textContent = data.running_queue;
+      toast(data.message || ('Antrean berikutnya (' + data.running_queue + ') dipanggil.'));
+      
+      // Update baris pasien yang cocok jika ada di tabel
+      document.querySelectorAll('tbody tr').forEach(row => {
+        const qCell = row.querySelector('td b');
+        if (qCell && qCell.textContent.trim() === data.running_queue) {
+          const statusSpan = row.querySelector('.status');
+          if (statusSpan) {
+            statusSpan.className = 'status green';
+            statusSpan.textContent = 'Dipanggil ke Loket 1';
+          }
+          row.style.background = '#f0fdf4';
+        }
+      });
+    } catch(e) {
+      const parts = runningQueue.textContent.split('-');
+      const currentNum = parseInt(parts[1]) || 16;
+      const n = currentNum + 1;
+      const q = 'A-' + String(n).padStart(3, '0');
+      runningQueue.textContent = q;
+      toast('Antrean berikutnya (' + q + ') dipanggil.');
+    } finally {
+      nextQueue.disabled = false;
+    }
+  };
+}
+
+bindPatientButtons();
+bindReferralButtons();
+</script>
+{% endblock %}

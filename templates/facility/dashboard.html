@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard Petugas - Klinik SKEM{% endblock %}
+
+{% block content %}
+<section class="page active" id="f-dashboard">
+  <div class="head">
+    <div>
+      <h1>Dashboard Klinik</h1>
+      <div class="muted">Operasional Klinik SKEM hari ini.</div>
+    </div>
+    <a href="{{ url_for('facility.walkin') }}" class="btn primary">Tambah pasien walk-in</a>
+  </div>
+
+  <div class="grid cols4">
+    <div class="card">
+      <div class="label">Pendaftaran masuk</div>
+      <div class="metric">{{ metrics.incoming | default(18) }}</div>
+    </div>
+    <div class="card">
+      <div class="label amber">Perlu verifikasi</div>
+      <div class="metric">{{ metrics.needs_review | default(5) }}</div>
+    </div>
+    <div class="card">
+      <div class="label">Dalam antrean</div>
+      <div class="metric">{{ metrics.in_queue | default(9) }}</div>
+    </div>
+    <div class="card">
+      <div class="label green">Selesai</div>
+      <div class="metric">{{ metrics.completed | default(4) }}</div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:14px;">
+    <h2 class="section-title">Prioritas pekerjaan</h2>
+    <div class="list">
+      <div class="row">
+        <div>
+          <b>{{ pending_review_count | default(5) }} pendaftaran menunggu pemeriksaan</b>
+          <span class="muted">Periksa data dan dokumen administratif</span>
+        </div>
+        <a href="{{ url_for('facility.review') }}" class="btn primary">Buka daftar</a>
+      </div>
+      <div class="row">
+        <div>
+          <b>{{ ready_queue_count | default(2) }} pasien siap dimasukkan ke antrean</b>
+          <span class="muted">Pendaftaran telah terverifikasi</span>
+        </div>
+        <a href="{{ url_for('facility.queue') }}" class="btn">Kelola antrean</a>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}
+

@@ -1,0 +1,216 @@
+{% extends 'base.html' %}
+
+{% block title %}Profil Pasien & Keluarga - Klinik SKEM{% endblock %}
+
+{% block content %}
+<section class="page active" id="p-profiles">
+  <div class="head">
+    <div>
+      <h1>Profil pasien</h1>
+      <div class="muted">Kelola data profil diri sendiri dan anggota keluarga Anda.</div>
+    </div>
+    <button class="btn primary" id="btnOpenAddProfile" type="button">+ Tambah profil</button>
+  </div>
+
+  <div class="grid cols2-equal">
+    {% for prof in patient_profiles %}
+    <div class="card" style="display:flex;flex-direction:column;justify-content:space-between;gap:12px;">
+      <div>
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+          <div>
+            <b style="font-size:18px;">{{ prof.name }}</b>
+            <p class="muted" style="margin:4px 0 10px;font-size:14px;">{{ prof.desc }}</p>
+          </div>
+          {% if 'Utama' in prof.desc or 'utama' in prof.desc %}
+            <span class="status green">Utama</span>
+          {% else %}
+            <span class="status blue">Keluarga</span>
+          {% endif %}
+        </div>
+
+        <div style="display:grid;grid-template-columns:105px 1fr;gap:6px 10px;font-size:14.5px;margin-top:8px;color:#374151;">
+          <span class="muted">No. ID:</span>
+          <b>{{ prof.id }}</b>
+          <span class="muted">Telepon:</span>
+          <span>{{ prof.phone }}</span>
+          <span class="muted">Tgl. Lahir:</span>
+          <span>{{ prof.dob_text }}</span>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:8px;align-items:center;padding-top:10px;border-top:1px solid #edf0f2;">
+        <button class="btn btn-edit-profile" type="button"
+          data-key="{{ prof.key }}"
+          data-name="{{ prof.name }}"
+          data-id="{{ prof.id }}"
+          data-phone="{{ prof.phone }}"
+          data-dob="{{ prof.dob }}"
+          data-rel="{{ prof.relationship }}">
+          Ubah
+        </button>
+
+        {% if 'Utama' not in prof.desc and 'utama' not in prof.desc %}
+        <form method="POST" action="{{ url_for('patient.delete_profile', profile_key=prof.key) }}" style="display:inline;" onsubmit="return confirm('Hapus profil {{ prof.name }}?');">
+          <button class="btn danger" type="submit">Hapus</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+    {% else %}
+    <div class="card wide empty">Belum ada profil pasien yang tersimpan. Klik "Tambah profil" di atas.</div>
+    {% endfor %}
+  </div>
+</section>
+
+<!-- MODAL TAMBAH PROFIL -->
+<div class="modal" id="addProfileModal">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h2>Tambah Profil Pasien / Keluarga</h2>
+      <button class="icon-btn" id="closeAddProfileModal" type="button">×</button>
+    </div>
+    <form method="POST" action="{{ url_for('patient.add_profile') }}">
+      <div class="grid form">
+        <div class="field wide">
+          <label for="addProfName">Nama Lengkap Pasien</label>
+          <input id="addProfName" name="name" required placeholder="Nama lengkap sesuai KTP / Akta">
+        </div>
+
+        <div class="field">
+          <label for="addProfId">Nomor Identitas (NIK / No. Demo)</label>
+          <input id="addProfId" name="identity_number" required placeholder="Contoh: DEMO-3173099901">
+        </div>
+
+        <div class="field">
+          <label for="addProfRel">Hubungan / Status</label>
+          <select id="addProfRel" name="relationship">
+            <option value="Keluarga">Keluarga</option>
+            <option value="Anak">Anak</option>
+            <option value="Orang tua">Orang tua</option>
+            <option value="Pasangan">Pasangan</option>
+            <option value="Diri sendiri">Diri sendiri</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="addProfDob">Tanggal Lahir</label>
+          <input id="addProfDob" name="dob" type="date" required>
+        </div>
+
+        <div class="field">
+          <label for="addProfPhone">Nomor Telepon</label>
+          <input id="addProfPhone" name="phone" required placeholder="08xxxxxxxxxx">
+        </div>
+      </div>
+
+      <div class="actions">
+        <button type="button" class="btn" id="btnCancelAddProfile">Batal</button>
+        <button type="submit" class="btn primary">Simpan Profil</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL UBAH PROFIL -->
+<div class="modal" id="editProfileModal">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h2>Ubah Profil Pasien</h2>
+      <button class="icon-btn" id="closeEditProfileModal" type="button">×</button>
+    </div>
+    <form method="POST" id="editProfileForm" action="">
+      <input type="hidden" id="editProfKey" name="key">
+      <div class="grid form">
+        <div class="field wide">
+          <label for="editProfName">Nama Lengkap Pasien</label>
+          <input id="editProfName" name="name" required>
+        </div>
+
+        <div class="field">
+          <label for="editProfId">Nomor Identitas (NIK)</label>
+          <input id="editProfId" name="identity_number" required>
+        </div>
+
+        <div class="field">
+          <label for="editProfRel">Hubungan / Status</label>
+          <select id="editProfRel" name="relationship">
+            <option value="Diri sendiri">Diri sendiri (Profil Utama)</option>
+            <option value="Keluarga">Keluarga</option>
+            <option value="Anak">Anak</option>
+            <option value="Orang tua">Orang tua</option>
+            <option value="Pasangan">Pasangan</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="editProfDob">Tanggal Lahir</label>
+          <input id="editProfDob" name="dob" type="date" required>
+        </div>
+
+        <div class="field">
+          <label for="editProfPhone">Nomor Telepon</label>
+          <input id="editProfPhone" name="phone" required>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button type="button" class="btn" id="btnCancelEditProfile">Batal</button>
+        <button type="submit" class="btn primary">Simpan Perubahan</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Modal Tambah Profil
+const addModal = document.getElementById('addProfileModal');
+const openAddBtn = document.getElementById('btnOpenAddProfile');
+const closeAddBtn = document.getElementById('closeAddProfileModal');
+const cancelAddBtn = document.getElementById('btnCancelAddProfile');
+
+if(openAddBtn && addModal){
+  openAddBtn.onclick = () => addModal.classList.add('show');
+}
+if(closeAddBtn && addModal){
+  closeAddBtn.onclick = () => addModal.classList.remove('show');
+}
+if(cancelAddBtn && addModal){
+  cancelAddBtn.onclick = () => addModal.classList.remove('show');
+}
+
+// Modal Ubah Profil
+const editModal = document.getElementById('editProfileModal');
+const closeEditBtn = document.getElementById('closeEditProfileModal');
+const cancelEditBtn = document.getElementById('btnCancelEditProfile');
+const editForm = document.getElementById('editProfileForm');
+
+document.querySelectorAll('.btn-edit-profile').forEach(b => {
+  b.onclick = () => {
+    const key = b.dataset.key;
+    document.getElementById('editProfKey').value = key;
+    document.getElementById('editProfName').value = b.dataset.name || '';
+    document.getElementById('editProfId').value = b.dataset.id || '';
+    document.getElementById('editProfPhone').value = b.dataset.phone || '';
+    document.getElementById('editProfDob').value = b.dataset.dob || '';
+    if(b.dataset.rel) document.getElementById('editProfRel').value = b.dataset.rel;
+
+    editForm.action = `/patient/profiles/edit/${key}`;
+    if(editModal) editModal.classList.add('show');
+  };
+});
+
+if(closeEditBtn && editModal){
+  closeEditBtn.onclick = () => editModal.classList.remove('show');
+}
+if(cancelEditBtn && editModal){
+  cancelEditBtn.onclick = () => editModal.classList.remove('show');
+}
+
+window.onclick = e => {
+  if(e.target === addModal) addModal.classList.remove('show');
+  if(e.target === editModal) editModal.classList.remove('show');
+};
+</script>
+{% endblock %}

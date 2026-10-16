@@ -1,0 +1,175 @@
+{% extends 'base.html' %}
+
+{% block title %}Resep Obat Saya - Klinik SKEM{% endblock %}
+
+{% block content %}
+<section class="page active" id="p-prescriptions">
+  <div class="head">
+    <div>
+      <h1>Resep & Pengambilan Obat</h1>
+      <div class="muted">Pantau status peracikan obat, lokasi loket pengambilan, dan aturan pakai obat dari dokter Anda.</div>
+    </div>
+  </div>
+
+  <!-- BANNER NOTIFIKASI OBAT SIAP DIAMBIL (JIKA ADA) -->
+  {% if ready_rx %}
+  <div style="background:#eaf5ee;border:2px solid #25704b;border-radius:6px;padding:18px 22px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;box-shadow:0 2px 6px rgba(37,112,75,0.08);">
+    <div>
+      <div style="display:inline-flex;align-items:center;gap:6px;font-weight:700;font-size:17.5px;color:#175235;">
+        <span>💊</span> Resep Obat Siap Diambil di Loket!
+      </div>
+      <div style="font-size:15px;color:#225c3e;margin-top:5px;line-height:1.45;">
+        Resep <b>{{ ready_rx.id }}</b> atas nama <b>{{ ready_rx.patient_name }}</b> telah selesai diracik.<br>
+        Silakan menuju ke <b style="background:#d4eedd;padding:2px 8px;border-radius:4px;">{{ ready_rx.counter }}</b> dengan menunjukkan nomor resep Anda.
+      </div>
+    </div>
+    <div>
+      <form method="POST" action="{{ url_for('patient.confirm_prescription', rx_id=ready_rx.id) }}" style="display:inline;">
+        <button type="submit" class="btn primary" style="background:#25704b;border-color:#25704b;padding:10px 18px;font-weight:700;font-size:15px;">
+          ✓ Konfirmasi Sudah Ambil
+        </button>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- METRIC SUMMARY CARDS -->
+  <div class="grid cols4" style="margin-bottom:20px;">
+    <div class="card">
+      <div class="label green">Siap Diambil</div>
+      <div class="metric" style="color:#25704b;">{{ ready_count }}</div>
+      <div class="muted" style="margin-top:2px;">Tersedia di loket farmasi</div>
+    </div>
+    <div class="card">
+      <div class="label amber">Sedang Diracik</div>
+      <div class="metric" style="color:#8c5d15;">{{ prep_count }}</div>
+      <div class="muted" style="margin-top:2px;">Dalam proses oleh apoteker</div>
+    </div>
+    <div class="card">
+      <div class="label">Sudah Diterima</div>
+      <div class="metric">{{ done_count }}</div>
+      <div class="muted" style="margin-top:2px;">Riwayat pengambilan selesai</div>
+    </div>
+    <div class="card">
+      <div class="label">Total Resep</div>
+      <div class="metric">{{ prescriptions|length }}</div>
+      <div class="muted" style="margin-top:2px;">Akun & keluarga terdaftar</div>
+    </div>
+  </div>
+
+  <!-- DAFTAR KARTU RESEP OBAT -->
+  <div style="display:grid;gap:18px;">
+    {% if prescriptions %}
+      {% for rx in prescriptions %}
+      <div class="card" style="border-left: 5px solid {% if rx.status == 'Siap Diambil' %}var(--green){% elif rx.status == 'Sedang Diracik' %}#d0a044{% else %}#94a3b8{% endif %};">
+        
+        <!-- CARD HEADER -->
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;padding-bottom:14px;border-bottom:1px solid #edf0f3;">
+          <div>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+              <span style="font-size:19px;font-weight:700;color:var(--navy);">{{ rx.id }}</span>
+              <span class="status {% if rx.status == 'Siap Diambil' %}green{% elif rx.status == 'Sedang Diracik' %}amber{% else %}blue{% endif %}" style="font-size:13.5px;padding:3px 10px;">
+                {{ rx.status }}
+              </span>
+              <span class="muted" style="font-size:14px;">· {{ rx.date }} ({{ rx.time }})</span>
+            </div>
+            
+            <div style="margin-top:6px;font-size:15px;color:#334155;">
+              Pasien: <b style="color:var(--navy);">{{ rx.patient_name }}</b> 
+              <span class="muted">({{ rx.clinic }} · {{ rx.doctor }})</span>
+            </div>
+          </div>
+
+          <div style="text-align:right;">
+            <div class="label" style="margin-bottom:0;font-size:12px;">Lokasi Pengambilan</div>
+            <div style="font-size:16px;font-weight:700;color:#114e74;margin-top:3px;">
+              {{ rx.counter }}
+            </div>
+          </div>
+        </div>
+
+        <!-- MEDICATION ITEMS LIST -->
+        <div style="margin-top:14px;">
+          <div style="font-size:13.5px;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.4px;margin-bottom:8px;">
+            Daftar Obat & Aturan Pakai:
+          </div>
+
+          <div class="table-wrap" style="box-shadow:none;border-color:#e2e8f0;">
+            <table class="table" style="min-width:550px;">
+              <thead>
+                <tr>
+                  <th style="width:40px;">No</th>
+                  <th>Nama Obat</th>
+                  <th>Jumlah</th>
+                  <th>Dosis & Jadwal Minum</th>
+                  <th>Petunjuk / Waktu Minum</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for med in rx.medications %}
+                <tr>
+                  <td style="color:var(--muted);font-weight:600;">{{ loop.index }}</td>
+                  <td>
+                    <b style="color:#0f3854;">{{ med.name }}</b>
+                    {% if med.form %}
+                      <div class="muted" style="font-size:13px;">Bentuk sediaan: {{ med.form }}</div>
+                    {% endif %}
+                  </td>
+                  <td><b>{{ med.qty }}</b></td>
+                  <td>
+                    <span style="background:#eef6fc;color:#135985;padding:3px 8px;border-radius:4px;font-weight:600;">
+                      {{ med.dosage }}
+                    </span>
+                  </td>
+                  <td>{{ med.timing }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- SPECIAL NOTES & INSTRUCTIONS -->
+        {% if rx.notes %}
+        <div style="margin-top:14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:4px;padding:12px 14px;font-size:14.5px;color:#334155;">
+          <b style="color:#1e293b;">Catatan Farmasi / Dokter:</b> {{ rx.notes }}
+        </div>
+        {% endif %}
+
+        <!-- CARD FOOTER ACTIONS -->
+        <div style="margin-top:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;padding-top:12px;border-top:1px solid #edf0f3;">
+          <div style="font-size:14px;color:var(--muted);">
+            {% if rx.status == 'Siap Diambil' %}
+              <span style="color:#25704b;font-weight:600;">✓ Obat siap diserahkan di {{ rx.counter }}. Tunjukkan nomor resep ini ke petugas.</span>
+            {% elif rx.status == 'Sedang Diracik' %}
+              <span style="color:#8c5d15;font-weight:600;">⏳ Obat sedang disiapkan apoteker RS. Halaman ini akan otomatis diperbarui setelah siap.</span>
+            {% else %}
+              <span style="color:#2563eb;">✓ Obat telah berhasil diambil dan diserahkan.</span>
+            {% endif %}
+          </div>
+
+          <div>
+            {% if rx.status == 'Siap Diambil' %}
+            <form method="POST" action="{{ url_for('patient.confirm_prescription', rx_id=rx.id) }}" style="display:inline;">
+              <button type="submit" class="btn primary" style="background:#25704b;border-color:#25704b;font-weight:600;">
+                ✓ Tandai Sudah Diterima
+              </button>
+            </form>
+            {% endif %}
+            <button type="button" class="btn" onclick="window.print()">Cetak Resep</button>
+          </div>
+        </div>
+
+      </div>
+      {% endfor %}
+    {% else %}
+      <div class="card empty">
+        <div style="font-size:32px;margin-bottom:8px;">💊</div>
+        <b>Belum Ada Resep Obat Aktif</b>
+        <p class="muted" style="margin-top:4px;">Resep yang diresepkan oleh dokter pada saat kunjungan akan langsung tampil di sini.</p>
+      </div>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}
+

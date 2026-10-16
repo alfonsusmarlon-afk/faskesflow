@@ -1,0 +1,193 @@
+{% extends 'base.html' %}
+
+{% block title %}Data Pasien - Klinik SKEM{% endblock %}
+
+{% block content %}
+<section class="page active" id="f-patients">
+  <div class="head">
+    <div>
+      <h1>Data pasien</h1>
+      <div class="muted">Cari dan buka detail administratif pasien sesuai kewenangan Klinik SKEM.</div>
+    </div>
+    <button class="btn" id="downloadReport" type="button">Unduh laporan pasien</button>
+  </div>
+
+  <div class="card">
+    <div class="toolbar">
+      <input id="patientSearch" type="search" placeholder="Cari nama, ID pasien, atau nomor telepon">
+      <span class="muted" id="patientCount">{{ (patients | length) }} pasien ditemukan</span>
+    </div>
+
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Nama pasien</th>
+            <th>Telepon</th>
+            <th>Kunjungan terakhir</th>
+            <th>Layanan</th>
+            <th>Status</th>
+            <th>Aksi</th>
+          </tr>
+        </thead>
+        <tbody id="patientRows">
+          {% for p in patients %}
+          <tr>
+            <td>{{ p.id }}</td>
+            <td><b>{{ p.name }}</b></td>
+            <td>{{ p.phone }}</td>
+            <td>{{ p.date }}</td>
+            <td>{{ p.service }}</td>
+            <td>
+              {% if p.status == 'Dirujuk ke Faskes 2' %}
+                <span class="status purple">Dirujuk ke Faskes 2</span>
+              {% elif p.status == 'Selesai di Faskes Ini' %}
+                <span class="status green">Selesai di Faskes Ini</span>
+              {% else %}
+                <span class="status blue">{{ p.status }}</span>
+              {% endif %}
+            </td>
+            <td>
+              <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+                <button class="btn viewPatient" data-id="{{ p.id }}" type="button">Lihat</button>
+                {% if p.status != 'Dirujuk ke Faskes 2' and p.status != 'Selesai di Faskes Ini' %}
+                <form method="POST" action="{{ url_for('facility.complete_visit') }}" style="display:inline;" onsubmit="return confirm('Tandai kunjungan {{ p.name }} selesai di faskes ini?');">
+                  <input type="hidden" name="patient_id" value="{{ p.id }}">
+                  <input type="hidden" name="patient_name" value="{{ p.name }}">
+                  <button class="btn" type="submit" style="color:#15803d;border-color:#86efac;background:#f0fdf4;">
+                    ✓ Selesai di Faskes Ini
+                  </button>
+                </form>
+                <button class="btn btn-refer-patient" type="button"
+                  data-id="{{ p.id }}"
+                  data-name="{{ p.name }}"
+                  data-service="{{ p.service }}"
+                  style="color:#6d28d9;border-color:#c4b5fd;background:#f5f3ff;">
+                  ↗ Rujuk ke Faskes Lanjutan
+                </button>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="7" class="empty" style="text-align:center;padding:24px;color:#64748b;">
+              Belum ada data pasien terdaftar. Silakan lakukan pendaftaran baru atau kunjungan walk-in.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="pager" id="patientPager">
+      <button class="btn" disabled>‹</button>
+      <span>Halaman 1 dari 2</span>
+      <button class="btn">›</button>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let patientPage = 1;
+const perPage = 4;
+
+function filteredPatients(){
+  const searchInput = document.getElementById('patientSearch');
+  const q = (searchInput ? searchInput.value : '').toLowerCase();
+  return patients.filter(p => Object.values(p).some(v => String(v).toLowerCase().includes(q)));
+}
+
+function renderPatients(){
+  const body = document.getElementById('patientRows');
+  const countEl = document.getElementById('patientCount');
+  const pagerEl = document.getElementById('patientPager');
+  if(!body) return;
+
+  const data = filteredPatients();
+  const pages = Math.max(1, Math.ceil(data.length / perPage));
+  patientPage = Math.min(patientPage, pages);
+  const slice = data.slice((patientPage - 1) * perPage, patientPage * perPage);
+
+  body.innerHTML = slice.map(p => {
+    let statusBadge = `<span class="status blue">${p.status || 'Terdaftar'}</span>`;
+    if(p.status === 'Dirujuk ke Faskes 2'){
+      statusBadge = `<span class="status purple">Dirujuk ke Faskes 2</span>`;
+    } else if(p.status === 'Selesai di Faskes Ini'){
+      statusBadge = `<span class="status green">Selesai di Faskes Ini</span>`;
+    }
+
+    let actionBtns = `<button class="btn viewPatient" data-id="${p.id}" type="button">Lihat</button>`;
+    if(p.status !== 'Dirujuk ke Faskes 2' && p.status !== 'Selesai di Faskes Ini'){
+      actionBtns += `
+        <form method="POST" action="/facility/visit/complete" style="display:inline;" onsubmit="return confirm('Tandai kunjungan ${p.name} selesai di faskes ini?');">
+          <input type="hidden" name="patient_id" value="${p.id}">
+          <input type="hidden" name="patient_name" value="${p.name}">
+          <button class="btn" type="submit" style="color:#15803d;border-color:#86efac;background:#f0fdf4;">✓ Selesai di Faskes Ini</button>
+        </form>
+        <button class="btn btn-refer-patient" type="button"
+          data-id="${p.id}"
+          data-name="${p.name}"
+          data-service="${p.service}"
+          style="color:#6d28d9;border-color:#c4b5fd;background:#f5f3ff;">
+          ↗ Rujuk ke Faskes Lanjutan
+        </button>
+      `;
+    }
+
+    return `<tr>
+      <td>${p.id}</td>
+      <td><b>${p.name}</b></td>
+      <td>${p.phone}</td>
+      <td>${p.date}</td>
+      <td>${p.service}</td>
+      <td>${statusBadge}</td>
+      <td><div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">${actionBtns}</div></td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="7" class="empty">Data tidak ditemukan</td></tr>';
+
+  if(countEl) countEl.textContent = `${data.length} pasien ditemukan`;
+
+  if(pagerEl){
+    pagerEl.innerHTML = `
+      <button class="btn" ${patientPage === 1 ? 'disabled' : ''} data-pager="prev" type="button">‹</button>
+      <span>Halaman ${patientPage} dari ${pages}</span>
+      <button class="btn" ${patientPage === pages ? 'disabled' : ''} data-pager="next" type="button">›</button>
+    `;
+    pagerEl.querySelectorAll('[data-pager]').forEach(b => {
+      b.onclick = () => {
+        patientPage += b.dataset.pager === 'next' ? 1 : -1;
+        renderPatients();
+      };
+    });
+  }
+
+  bindPatientButtons();
+  bindReferralButtons();
+}
+
+const searchEl = document.getElementById('patientSearch');
+if(searchEl){
+  searchEl.oninput = () => {
+    patientPage = 1;
+    renderPatients();
+  };
+}
+
+const downloadBtn = document.getElementById('downloadReport');
+if(downloadBtn){
+  downloadBtn.onclick = () => {
+    csvDownload('laporan-pasien-demo.csv', [
+      ['ID Pasien', 'Nama', 'Telepon', 'Tanggal Kunjungan', 'Layanan', 'Pembiayaan', 'Status', 'ID Formulir'],
+      ...patients.map(p => [p.id, p.name, p.phone, p.date, p.service, p.finance, p.status, p.form])
+    ]);
+  };
+}
+
+renderPatients();
+</script>
+{% endblock %}
+

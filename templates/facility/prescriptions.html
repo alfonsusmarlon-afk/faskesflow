@@ -1,0 +1,464 @@
+{% extends 'base.html' %}
+
+{% block title %}Kelola Resep & Farmasi - Klinik SKEM{% endblock %}
+
+{% block content %}
+<section class="page active" id="f-prescriptions">
+  <div class="head">
+    <div>
+      <h1>Resep & Layanan Farmasi</h1>
+      <div class="muted">Input resep obat untuk pasien, perbarui status peracikan obat, dan serahkan obat di loket farmasi.</div>
+    </div>
+    <button type="button" class="btn primary" id="btnOpenAddRx" style="font-weight:700;">
+      + Input Resep Obat Baru
+    </button>
+  </div>
+
+  <!-- SUMMARY METRICS -->
+  <div class="grid cols4" style="margin-bottom:20px;">
+    <div class="card">
+      <div class="label">Total Resep</div>
+      <div class="metric">{{ total_rx }}</div>
+      <div class="muted" style="margin-top:2px;">Resep terdaftar di sistem</div>
+    </div>
+    <div class="card">
+      <div class="label amber">Sedang Diracik</div>
+      <div class="metric" style="color:#8c5d15;">{{ prep_count }}</div>
+      <div class="muted" style="margin-top:2px;">Dalam proses apotek</div>
+    </div>
+    <div class="card">
+      <div class="label green">Siap Diambil</div>
+      <div class="metric" style="color:#25704b;">{{ ready_count }}</div>
+      <div class="muted" style="margin-top:2px;">Menunggu pasien di loket</div>
+    </div>
+    <div class="card">
+      <div class="label">Sudah Diserahkan</div>
+      <div class="metric" style="color:#2563eb;">{{ done_count }}</div>
+      <div class="muted" style="margin-top:2px;">Selesai diserahkan ke pasien</div>
+    </div>
+  </div>
+
+  <!-- DAFTAR RESEP OBAT PETUGAS -->
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:14px;">
+      <h2 class="section-title" style="margin:0;">Daftar Antrean & Penyerahan Resep</h2>
+      <div style="font-size:14px;color:var(--muted);">
+        Resep yang diinput akan langsung sinkron dan dapat dipantau oleh akun pasien terkait.
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table class="table" style="min-width:760px;">
+        <thead>
+          <tr>
+            <th style="width:105px;">No. Resep</th>
+            <th>Pasien</th>
+            <th>Poli & Dokter</th>
+            <th>Daftar Obat</th>
+            <th>Loket Farmasi</th>
+            <th>Status</th>
+            <th style="text-align:right;width:240px;">Tindakan Petugas</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for rx in prescriptions %}
+          <tr>
+            <td>
+              <b style="color:var(--navy);font-size:15px;">{{ rx.id }}</b>
+              <div class="muted" style="font-size:12.5px;">{{ rx.date }}</div>
+            </td>
+            <td>
+              <b style="color:#0f3854;font-size:15px;">{{ rx.patient_name }}</b>
+              <div class="muted" style="font-size:13px;">ID: {{ rx.patient_id }}</div>
+            </td>
+            <td>
+              <b>{{ rx.clinic }}</b>
+              <div class="muted" style="font-size:13px;">{{ rx.doctor }}</div>
+            </td>
+            <td>
+              <div style="font-size:14px;line-height:1.4;">
+                {% for med in rx.medications %}
+                  <div>• <b>{{ med.name }}</b> ({{ med.qty }}) - <i>{{ med.dosage }}</i></div>
+                {% endfor %}
+              </div>
+              {% if rx.notes %}
+                <div style="margin-top:4px;font-size:12.5px;color:#64748b;font-style:italic;">
+                  Catatan: {{ rx.notes }}
+                </div>
+              {% endif %}
+            </td>
+            <td>
+              <span style="background:#eaf2f8;color:#13527b;padding:3px 8px;border-radius:4px;font-weight:700;font-size:13.5px;">
+                {{ rx.counter }}
+              </span>
+            </td>
+            <td>
+              <span class="status {% if rx.status == 'Siap Diambil' %}green{% elif rx.status == 'Sedang Diracik' %}amber{% else %}blue{% endif %}" style="font-size:13px;">
+                {{ rx.status }}
+              </span>
+            </td>
+            <td style="text-align:right;">
+              <div style="display:flex;gap:6px;justify-content:flex-end;align-items:center;flex-wrap:wrap;">
+                {% if rx.status == 'Sedang Diracik' %}
+                  <form method="POST" action="{{ url_for('facility.update_prescription_status', rx_id=rx.id, new_status='ready') }}" style="display:inline;">
+                    <button type="submit" class="btn primary btn-sm" title="Tandai obat telah selesai diracik dan siap diambil pasien">
+                      ✓ Siap Diambil
+                    </button>
+                  </form>
+                {% elif rx.status == 'Siap Diambil' %}
+                  <form method="POST" action="{{ url_for('facility.update_prescription_status', rx_id=rx.id, new_status='dispensed') }}" style="display:inline;">
+                    <button type="submit" class="btn btn-sm" style="background:#25704b;color:#fff;border-color:#25704b;" title="Serahkan obat ke pasien di loket">
+                      ✓ Serahkan Obat
+                    </button>
+                  </form>
+                {% else %}
+                  <span class="status blue" style="font-size:12.5px;">Selesai diserahkan</span>
+                {% endif %}
+
+                <button type="button" class="btn btn-sm btn-view-rx"
+                  data-id="{{ rx.id }}"
+                  data-patient="{{ rx.patient_name }}"
+                  data-clinic="{{ rx.clinic }}"
+                  data-doctor="{{ rx.doctor }}"
+                  data-counter="{{ rx.counter }}"
+                  data-status="{{ rx.status }}"
+                  data-notes="{{ rx.notes }}"
+                  data-meds='[
+                    {% for m in rx.medications %}
+                      {"name": "{{ m.name }}", "qty": "{{ m.qty }}", "dosage": "{{ m.dosage }}", "timing": "{{ m.timing }}"}{% if not loop.last %},{% endif %}
+                    {% endfor %}
+                  ]'>
+                  Rincian
+                </button>
+
+                <form method="POST" action="{{ url_for('facility.delete_prescription', rx_id=rx.id) }}" style="display:inline;" onsubmit="return confirm('Apakah Anda yakin ingin menghapus resep {{ rx.id }} untuk {{ rx.patient_name }}?');">
+                  <button type="submit" class="btn btn-sm danger" title="Hapus resep ini dari daftar farmasi">
+                    Hapus
+                  </button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- MODAL INPUT RESEP OBAT BARU -->
+<div class="modal" id="modalAddRx">
+  <div class="modal-box" style="max-width:680px;">
+    <div class="modal-head">
+      <h2>Input Resep Obat Pasien</h2>
+      <button class="icon-btn" id="btnCloseAddRx">×</button>
+    </div>
+
+    <form method="POST" action="{{ url_for('facility.create_prescription') }}" id="formCreateRx">
+      <div style="display:grid;gap:14px;">
+        
+        <!-- PILIH PASIEN -->
+        <div class="field">
+          <label for="rxPatientSelect">Pilih Pasien Penerima Resep</label>
+          <select id="rxPatientSelect" name="patient_info" required onchange="toggleCustomPatient(this.value)">
+            {% for p in patients %}
+              <option value="{{ p.id }}|{{ p.name }}|{{ p.email | default('pasien@local') }}">
+                {{ p.name }} ({{ p.id }} - {{ p.service | default('Pasien Terdaftar') }})
+              </option>
+            {% endfor %}
+            {% for k, sp in saved_profiles.items() %}
+              {% if not patients|selectattr('name', 'equalto', sp.name)|list %}
+              <option value="{{ sp.id or 'P001' }}|{{ sp.name }}|{{ sp.user_email | default('pasien@local') }}">
+                {{ sp.name }} ({{ sp.relationship | default('Profil Pasien') }} - {{ sp.badge | default('Tersimpan') }})
+              </option>
+              {% endif %}
+            {% endfor %}
+            <option value="custom">+ Tulis Manual / Pasien Baru...</option>
+          </select>
+          <div class="muted" style="font-size:13px;">Resep akan langsung terhubung ke portal akun pasien yang bersangkutan.</div>
+        </div>
+
+        <div class="field" id="customPatientField" style="display:none;background:#f0f9ff;border:1px solid #bae6fd;padding:10px 12px;border-radius:4px;">
+          <label for="customPatientName" style="font-weight:700;color:#0369a1;display:block;margin-bottom:4px;">Nama Lengkap Pasien Baru</label>
+          <input type="text" id="customPatientName" name="custom_patient_name" placeholder="Ketik nama lengkap pasien baru...">
+        </div>
+
+        <div class="two-cols">
+          <div class="field">
+            <label for="rxClinic">Poliklinik</label>
+            <select id="rxClinic" name="clinic" required>
+              <option value="Poli Umum">Poli Umum</option>
+              <option value="Poli Gigi">Poli Gigi</option>
+              <option value="Poli Anak">Poli Anak</option>
+              <option value="Poli Penyakit Dalam">Poli Penyakit Dalam</option>
+              <option value="Poli Mata">Poli Mata</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="rxDoctor">Dokter Pemeriksa</label>
+            <input id="rxDoctor" name="doctor" required value="dr. Hendra Pratama, Sp.PD" placeholder="Nama dokter">
+          </div>
+        </div>
+
+        <div class="two-cols">
+          <div class="field">
+            <label for="rxCounter">Loket Farmasi Pengambilan</label>
+            <select id="rxCounter" name="counter" required>
+              <option value="Loket Farmasi 2">Loket Farmasi 2 (Utama)</option>
+              <option value="Loket Farmasi 1">Loket Farmasi 1 (Gigi & Khusus)</option>
+              <option value="Loket Farmasi 3">Loket Farmasi 3 (Rawat Jalan)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="rxStatus">Status Awal Resep</label>
+            <select id="rxStatus" name="status" required>
+              <option value="Sedang Diracik">Sedang Diracik (Dalam Antrean Farmasi)</option>
+              <option value="Siap Diambil">Siap Diambil (Sudah Selesai Dibuat)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- DAFTAR OBAT YANG DIBERIKAN -->
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:14px;margin-top:4px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <b style="color:#0f3854;font-size:15px;">Daftar Obat yang Diresepkan:</b>
+            <button type="button" class="btn btn-sm" id="btnAddMedRow" style="font-size:13px;">+ Tambah Obat Lain</button>
+          </div>
+
+          <div id="medRowsContainer" style="display:grid;gap:10px;">
+            <!-- ROW 1 -->
+            <div class="med-row" style="background:#fff;border:1px solid #dbe2e8;border-radius:4px;padding:10px;position:relative;">
+              <div style="display:grid;grid-template-columns:2fr 1.2fr 1fr;gap:8px;margin-bottom:6px;">
+                <div>
+                  <label style="font-size:13px;font-weight:600;display:block;margin-bottom:2px;">Nama Obat</label>
+                  <input name="med_name[]" placeholder="Contoh: Paracetamol 500mg" required value="Paracetamol 500mg" style="padding:8px 10px;font-size:14px;">
+                </div>
+                <div>
+                  <label style="font-size:13px;font-weight:600;display:block;margin-bottom:2px;">Dosis / Jadwal</label>
+                  <input name="med_dosage[]" placeholder="3 x 1 sehari" required value="3 x 1 sehari" style="padding:8px 10px;font-size:14px;">
+                </div>
+                <div>
+                  <label style="font-size:13px;font-weight:600;display:block;margin-bottom:2px;">Jumlah</label>
+                  <input name="med_qty[]" placeholder="10 tablet" required value="10 tablet" style="padding:8px 10px;font-size:14px;">
+                </div>
+              </div>
+              <div>
+                <label style="font-size:13px;font-weight:600;display:block;margin-bottom:2px;">Petunjuk / Waktu Minum</label>
+                <input name="med_timing[]" placeholder="Sesudah makan" value="Sesudah makan bila demam/nyeri" style="padding:8px 10px;font-size:14px;">
+              </div>
+              <button type="button" class="btn btn-sm danger" style="margin-top:6px;font-size:12px;padding:3px 8px;" onclick="removeMedRow(this)">Hapus Baris Obat</button>
+            </div>
+
+            <!-- ROW 2 -->
+            <div class="med-row" style="background:#fff;border:1px solid #dbe2e8;border-radius:4px;padding:10px;position:relative;">
+              <div style="display:grid;grid-template-columns:2fr 1.2fr 1fr;gap:8px;margin-bottom:6px;">
+                <div>
+                  <label style="font-size:13px;font-weight:600;display:block;margin-bottom:2px;">Nama Obat</label>
+                  <input name="med_name[]" placeholder="Contoh: Vitamin C 500mg" value="Vitamin C 500mg" style="padding:8px 10px;font-size:14px;">
+                </div>
+                <div>
+                  <label style="font-size:13px;font-weight:600;display:block;margin-bottom:2px;">Dosis / Jadwal</label>
+                  <input name="med_dosage[]" placeholder="1 x 1 sehari" value="1 x 1 sehari" style="padding:8px 10px;font-size:14px;">
+                </div>
+                <div>
+                  <label style="font-size:13px;font-weight:600;display:block;margin-bottom:2px;">Jumlah</label>
+                  <input name="med_qty[]" placeholder="10 tablet" value="10 tablet" style="padding:8px 10px;font-size:14px;">
+                </div>
+              </div>
+              <div>
+                <label style="font-size:13px;font-weight:600;display:block;margin-bottom:2px;">Petunjuk / Waktu Minum</label>
+                <input name="med_timing[]" placeholder="Pagi setelah makan" value="Pagi hari sesudah sarapan" style="padding:8px 10px;font-size:14px;">
+              </div>
+              <button type="button" class="btn btn-sm danger" style="margin-top:6px;font-size:12px;padding:3px 8px;" onclick="removeMedRow(this)">Hapus Baris Obat</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- CATATAN KHUSUS FARMASI -->
+        <div class="field">
+          <label for="rxNotes">Catatan Khusus Apoteker / Dokter</label>
+          <textarea id="rxNotes" name="notes" rows="2" placeholder="Contoh: Diminum teratur sehabis makan. Banyak minum air putih."></textarea>
+        </div>
+
+        <div class="actions" style="margin-top:14px;">
+          <button type="button" class="btn" id="btnCancelAddRx">Batal</button>
+          <button type="submit" class="btn primary" style="font-weight:700;">
+            ✓ Simpan & Kirim Resep ke Pasien
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL RINCIAN DETAIL RESEP -->
+<div class="modal" id="modalInspectRx">
+  <div class="modal-box" style="max-width:620px;">
+    <div class="modal-head">
+      <h2 id="inspectRxTitle">Rincian Resep</h2>
+      <button class="icon-btn" id="btnCloseInspectRx">×</button>
+    </div>
+
+    <div style="display:grid;gap:14px;">
+      <div style="display:grid;grid-template-columns:130px 1fr;gap:8px 12px;font-size:15px;">
+        <span class="muted">No. Resep:</span>
+        <b id="inspectRxId"></b>
+
+        <span class="muted">Nama Pasien:</span>
+        <b id="inspectRxPatient"></b>
+
+        <span class="muted">Layanan:</span>
+        <span id="inspectRxClinic"></span>
+
+        <span class="muted">Dokter:</span>
+        <span id="inspectRxDoctor"></span>
+
+        <span class="muted">Loket Farmasi:</span>
+        <b id="inspectRxCounter" style="color:var(--blue);"></b>
+
+        <span class="muted">Status:</span>
+        <span id="inspectRxStatus"></span>
+      </div>
+
+      <div style="border-top:1px solid #edf0f3;padding-top:10px;">
+        <b style="display:block;margin-bottom:6px;">Daftar Obat:</b>
+        <div id="inspectRxMedList" style="font-size:14.5px;line-height:1.5;"></div>
+      </div>
+
+      <div id="inspectRxNotesWrap" style="background:#f8fafc;padding:10px 12px;border-radius:4px;font-size:14px;display:none;">
+        <b>Catatan Farmasi:</b> <span id="inspectRxNotes"></span>
+      </div>
+
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:10px;">
+        <button type="button" class="btn" id="btnCloseInspectRxBottom">Tutup</button>
+        <button type="button" class="btn primary" onclick="window.print()">Cetak Resep</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Modal Input Resep Baru
+const modalAddRx = document.getElementById('modalAddRx');
+const btnOpenAddRx = document.getElementById('btnOpenAddRx');
+const btnCloseAddRx = document.getElementById('btnCloseAddRx');
+const btnCancelAddRx = document.getElementById('btnCancelAddRx');
+
+if (btnOpenAddRx) btnOpenAddRx.onclick = () => modalAddRx.classList.add('show');
+if (btnCloseAddRx) btnCloseAddRx.onclick = () => modalAddRx.classList.remove('show');
+if (btnCancelAddRx) btnCancelAddRx.onclick = () => modalAddRx.classList.remove('show');
+
+// Helper hapus baris obat
+function removeMedRow(btn) {
+  const container = document.getElementById('medRowsContainer');
+  const rows = container.querySelectorAll('.med-row');
+  if (rows.length > 1) {
+    btn.closest('.med-row').remove();
+  } else {
+    alert('Minimal harus ada 1 jenis obat dalam resep.');
+  }
+}
+
+// Helper toggle nama pasien kustom / manual
+function toggleCustomPatient(val) {
+  const f = document.getElementById('customPatientField');
+  const input = document.getElementById('customPatientName');
+  if (val === 'custom') {
+    f.style.display = 'block';
+    input.required = true;
+    input.focus();
+  } else {
+    f.style.display = 'none';
+    input.required = false;
+  }
+}
+
+// Tambah baris obat dinamis
+const btnAddMedRow = document.getElementById('btnAddMedRow');
+const medRowsContainer = document.getElementById('medRowsContainer');
+
+if (btnAddMedRow && medRowsContainer) {
+  btnAddMedRow.onclick = () => {
+    const row = document.createElement('div');
+    row.className = 'med-row';
+    row.style = 'background:#fff;border:1px solid #dbe2e8;border-radius:4px;padding:10px;position:relative;';
+    row.innerHTML = `
+      <div style="display:grid;grid-template-columns:2fr 1.2fr 1fr;gap:8px;margin-bottom:6px;">
+        <div>
+          <label style="font-size:13px;font-weight:600;display:block;margin-bottom:2px;">Nama Obat</label>
+          <input name="med_name[]" placeholder="Contoh: Amoxicillin 500mg" required style="padding:8px 10px;font-size:14px;">
+        </div>
+        <div>
+          <label style="font-size:13px;font-weight:600;display:block;margin-bottom:2px;">Dosis / Jadwal</label>
+          <input name="med_dosage[]" placeholder="3 x 1 sehari" required value="3 x 1 sehari" style="padding:8px 10px;font-size:14px;">
+        </div>
+        <div>
+          <label style="font-size:13px;font-weight:600;display:block;margin-bottom:2px;">Jumlah</label>
+          <input name="med_qty[]" placeholder="10 tablet" required value="10 tablet" style="padding:8px 10px;font-size:14px;">
+        </div>
+      </div>
+      <div>
+        <label style="font-size:13px;font-weight:600;display:block;margin-bottom:2px;">Petunjuk / Waktu Minum</label>
+        <input name="med_timing[]" placeholder="Sesudah makan" value="Sesudah makan" style="padding:8px 10px;font-size:14px;">
+      </div>
+      <button type="button" class="btn btn-sm danger" style="margin-top:6px;font-size:12px;padding:3px 8px;" onclick="removeMedRow(this)">Hapus Baris Obat</button>
+    `;
+    medRowsContainer.appendChild(row);
+  };
+}
+
+// Modal Inspect Rincian Resep
+const modalInspectRx = document.getElementById('modalInspectRx');
+const btnCloseInspectRx = document.getElementById('btnCloseInspectRx');
+const btnCloseInspectRxBottom = document.getElementById('btnCloseInspectRxBottom');
+
+if (btnCloseInspectRx) btnCloseInspectRx.onclick = () => modalInspectRx.classList.remove('show');
+if (btnCloseInspectRxBottom) btnCloseInspectRxBottom.onclick = () => modalInspectRx.classList.remove('show');
+
+document.querySelectorAll('.btn-view-rx').forEach(btn => {
+  btn.onclick = () => {
+    const id = btn.dataset.id;
+    const patient = btn.dataset.patient;
+    const clinic = btn.dataset.clinic;
+    const doctor = btn.dataset.doctor;
+    const counter = btn.dataset.counter;
+    const status = btn.dataset.status;
+    const notes = btn.dataset.notes;
+    let meds = [];
+    try {
+      meds = JSON.parse(btn.dataset.meds || '[]');
+    } catch(e) {}
+
+    document.getElementById('inspectRxTitle').textContent = 'Rincian Resep ' + id;
+    document.getElementById('inspectRxId').textContent = id;
+    document.getElementById('inspectRxPatient').textContent = patient;
+    document.getElementById('inspectRxClinic').textContent = clinic;
+    document.getElementById('inspectRxDoctor').textContent = doctor;
+    document.getElementById('inspectRxCounter').textContent = counter;
+    document.getElementById('inspectRxStatus').textContent = status;
+
+    const medContainer = document.getElementById('inspectRxMedList');
+    medContainer.innerHTML = '';
+    meds.forEach((m, idx) => {
+      const item = document.createElement('div');
+      item.style = 'margin-bottom:6px;padding:6px 8px;background:#f8fafc;border-radius:4px;';
+      item.innerHTML = `<b>${idx + 1}. ${m.name}</b> (${m.qty})<br><span style="color:#135985;">Dosis: ${m.dosage}</span> · <span>Petunjuk: ${m.timing}</span>`;
+      medContainer.appendChild(item);
+    });
+
+    const notesWrap = document.getElementById('inspectRxNotesWrap');
+    if (notes) {
+      document.getElementById('inspectRxNotes').textContent = notes;
+      notesWrap.style.display = 'block';
+    } else {
+      notesWrap.style.display = 'none';
+    }
+
+    modalInspectRx.classList.add('show');
+  };
+});
+</script>
+{% endblock %}
+

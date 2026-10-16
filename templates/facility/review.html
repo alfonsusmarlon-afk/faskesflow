@@ -1,0 +1,175 @@
+{% extends 'base.html' %}
+
+{% block title %}Verifikasi Pendaftaran - Klinik SKEM{% endblock %}
+
+{% block content %}
+<section class="page active" id="f-review">
+  <div class="head">
+    <div>
+      <h1>Verifikasi pendaftaran</h1>
+      <div class="muted">Periksa formulir pasien dan unduh seluruh isinya sebagai satu PDF.</div>
+    </div>
+  </div>
+
+  <div class="card table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Pasien</th>
+          <th>Sumber</th>
+          <th>Layanan</th>
+          <th>Kelengkapan</th>
+          <th>Aksi</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in review_list %}
+        <tr>
+          <td><b>{{ item.id }}</b></td>
+          <td>
+            <button class="patient-link viewPatient" data-id="{{ item.patient_id }}" type="button">{{ item.patient_name }}</button>
+          </td>
+          <td>{{ item.source }}</td>
+          <td>{{ item.service }}</td>
+          <td><span class="status {{ item.status_class }}">{{ item.readiness }}</span></td>
+          <td>
+            <button class="btn formPdf" data-form="{{ item.id }}" type="button">Unduh PDF</button>
+
+            {% if item.readiness == 'Terverifikasi' %}
+              <span class="status green" style="margin-left:4px;">Terverifikasi</span>
+              <form method="POST" action="{{ url_for('facility.complete_visit') }}" style="display:inline;" onsubmit="return confirm('Tandai kunjungan {{ item.patient_name }} selesai di faskes ini?');">
+                <input type="hidden" name="patient_id" value="{{ item.patient_id }}">
+                <input type="hidden" name="patient_name" value="{{ item.patient_name }}">
+                <input type="hidden" name="form_id" value="{{ item.id }}">
+                <button class="btn" type="submit" style="color:#15803d;border-color:#86efac;background:#f0fdf4;" title="Selesaikan kunjungan di faskes ini">
+                  ✓ Selesai di Faskes Ini
+                </button>
+              </form>
+              <button class="btn btn-refer-patient" type="button"
+                data-id="{{ item.patient_id }}"
+                data-name="{{ item.patient_name }}"
+                data-service="{{ item.service }}"
+                data-form="{{ item.id }}"
+                style="color:#6d28d9;border-color:#c4b5fd;background:#f5f3ff;"
+                title="Rujuk pasien ke Faskes Tingkat 2">
+                ↗ Rujuk ke Faskes Lanjutan
+              </button>
+            {% elif item.readiness == 'Dirujuk ke Faskes 2' %}
+              <span class="status purple" style="margin-left:4px;">Dirujuk ke Faskes 2</span>
+            {% elif item.readiness == 'Selesai di Faskes Ini' %}
+              <span class="status green" style="margin-left:4px;">Selesai di Faskes Ini</span>
+            {% elif item.readiness == 'Lengkap' %}
+              <form method="POST" action="{{ url_for('facility.confirm_review', form_id=item.id) }}" style="display:inline;">
+                <button class="btn primary" type="submit">Konfirmasi</button>
+              </form>
+            {% else %}
+              <button class="btn btn-inspect-review" type="button"
+                data-id="{{ item.id }}"
+                data-patient="{{ item.patient_name }}"
+                data-service="{{ item.service }}"
+                data-source="{{ item.source }}"
+                data-readiness="{{ item.readiness }}">
+                Periksa
+              </button>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="6" class="empty">Tidak ada pendaftaran yang perlu diverifikasi saat ini.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- MODAL PERIKSA & VERIFIKASI BERKAS -->
+<div class="modal" id="reviewInspectModal">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h2>Pemeriksaan Berkas: <span id="inspectFormId"></span></h2>
+      <button class="icon-btn" id="closeInspectModal" type="button">×</button>
+    </div>
+    
+    <div style="background:#f8fafc;padding:12px;border:1px solid #e2e8f0;border-radius:3px;margin-bottom:14px;">
+      <dl class="detail-grid" style="margin:0;">
+        <dt>Nama Pasien</dt>
+        <dd><b id="inspectPatient"></b></dd>
+        <dt>Layanan / Poli</dt>
+        <dd id="inspectService"></dd>
+        <dt>Sumber Jalur</dt>
+        <dd id="inspectSource"></dd>
+        <dt>Status Berkas</dt>
+        <dd id="inspectReadiness"></dd>
+      </dl>
+    </div>
+
+    <form method="POST" id="formRequestFix" action="" style="margin-bottom:14px;background:#fff8eb;border:1px solid #fed7aa;border-radius:4px;padding:12px;">
+      <label for="inspectReason" style="display:block;font-size:13.5px;font-weight:700;margin-bottom:6px;color:#9a3412;">
+        Kekurangan / Alasan Perbaikan Berkas (Muncul di Menu Tindakan Pasien):
+      </label>
+      <input type="text" id="inspectReason" name="reason"
+        placeholder="Contoh: Foto KTP kurang jelas atau surat rujukan belum lengkap"
+        value="Foto dokumen/identitas kurang jelas atau berkas pendukung belum lengkap"
+        style="width:100%;border:1px solid #cbd5e1;border-radius:4px;padding:8px 12px;font-size:14px;margin-bottom:8px;">
+      <button class="btn danger" type="submit" style="font-weight:700;font-size:13.5px;">
+        ⚠️ Minta Perbaikan Berkas Pasien
+      </button>
+    </form>
+
+    <div style="border-top:1px solid #e2e8f0;padding-top:12px;display:flex;justify-content:space-between;align-items:center;">
+      <button type="button" class="btn" id="btnCancelInspect">Tutup</button>
+      <form method="POST" id="formConfirmReview" action="" style="display:inline;">
+        <button class="btn primary" type="submit" style="font-weight:700;">
+          ✓ Setujui Berkas & Terbitkan Nomor Antrean
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.querySelectorAll('.formPdf').forEach(b => {
+  b.onclick = () => printForm(b.dataset.form);
+});
+bindPatientButtons();
+bindReferralButtons();
+
+// Inspect modal handlers
+const inspectModal = document.getElementById('reviewInspectModal');
+const closeInspectBtn = document.getElementById('closeInspectModal');
+const cancelInspectBtn = document.getElementById('btnCancelInspect');
+const formConfirm = document.getElementById('formConfirmReview');
+const formFix = document.getElementById('formRequestFix');
+
+document.querySelectorAll('.btn-inspect-review').forEach(b => {
+  b.onclick = () => {
+    const id = b.dataset.id;
+    document.getElementById('inspectFormId').textContent = id;
+    document.getElementById('inspectPatient').textContent = b.dataset.patient || '';
+    document.getElementById('inspectService').textContent = b.dataset.service || '';
+    document.getElementById('inspectSource').textContent = b.dataset.source || '';
+    document.getElementById('inspectReadiness').textContent = b.dataset.readiness || '';
+
+    formConfirm.action = `/facility/review/confirm/${id}`;
+    formFix.action = `/facility/review/request_fix/${id}`;
+
+    if(inspectModal) inspectModal.classList.add('show');
+  };
+});
+
+if(closeInspectBtn && inspectModal){
+  closeInspectBtn.onclick = () => inspectModal.classList.remove('show');
+}
+if(cancelInspectBtn && inspectModal){
+  cancelInspectBtn.onclick = () => inspectModal.classList.remove('show');
+}
+window.onclick = e => {
+  if(e.target === inspectModal) inspectModal.classList.remove('show');
+};
+</script>
+{% endblock %}

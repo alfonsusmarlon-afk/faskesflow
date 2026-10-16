@@ -1,0 +1,166 @@
+{% extends 'base.html' %}
+
+{% block title %}Layanan dan Persyaratan - Klinik SKEM{% endblock %}
+
+{% block content %}
+<section class="page active" id="s-services">
+  <div class="head">
+    <div>
+      <h1>Layanan dan persyaratan</h1>
+      <div class="muted">Konfigurasi layanan serta kelengkapan administrasi di Klinik SKEM.</div>
+    </div>
+    <button class="btn primary" id="btnOpenAddService" type="button">+ Tambah layanan</button>
+  </div>
+
+  <div class="card table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Layanan / Poli</th>
+          <th>Klinik / Faskes</th>
+          <th>Persyaratan Dokumen</th>
+          <th>Status</th>
+          <th>Aksi</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in services_list %}
+        <tr>
+          <td><b>{{ s.name }}</b></td>
+          <td>{{ s.hospital }}</td>
+          <td>{{ s.requirements }}</td>
+          <td><span class="status {{ s.status_class }}">{{ s.status }}</span></td>
+          <td>
+            <button class="btn" type="button" data-edit-service data-id="{{ loop.index0 }}" data-name="{{ s.name }}" data-hospital="{{ s.hospital }}" data-requirements="{{ s.requirements }}" data-status="{{ s.status }}">Edit</button>
+            <form method="POST" action="{{ url_for('system.delete_service', index=loop.index0) }}" style="display:inline;" onsubmit="return confirm('Hapus layanan {{ s.name }}?');">
+              <button class="btn danger" type="submit">Hapus</button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="5" class="empty">Belum ada layanan yang dikonfigurasi.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- MODAL TAMBAH LAYANAN -->
+<div class="modal" id="addServiceModal">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h2>Tambah Layanan / Poli Baru</h2>
+      <button class="icon-btn" id="closeAddServiceModal" type="button">×</button>
+    </div>
+    <form method="POST" action="{{ url_for('system.add_service') }}">
+      <div class="grid form">
+        <div class="field">
+          <label for="newServiceName">Nama Layanan / Poli</label>
+          <input id="newServiceName" name="name" required placeholder="Contoh: Poli Mata">
+        </div>
+
+        <div class="field">
+          <label for="newServiceHospital">Fasilitas / Klinik</label>
+          <input id="newServiceHospital" name="hospital" value="Klinik SKEM" required>
+        </div>
+
+        <div class="field wide">
+          <label for="newServiceReqs">Dokumen Persyaratan Administrasi</label>
+          <input id="newServiceReqs" name="requirements" required placeholder="Contoh: Identitas, rujukan FKTP, kartu asuransi">
+        </div>
+
+        <div class="field">
+          <label for="newServiceStatus">Status Operasional</label>
+          <select id="newServiceStatus" name="status">
+            <option value="Aktif">Aktif</option>
+            <option value="Nonaktif">Nonaktif</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button type="button" class="btn" id="btnCancelAddService">Batal</button>
+        <button type="submit" class="btn primary">Simpan Layanan</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL EDIT LAYANAN -->
+<div class="modal" id="editServiceModal">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h2>Edit Layanan / Poli</h2>
+      <button class="icon-btn" id="closeEditServiceModal" type="button">×</button>
+    </div>
+    <form method="POST" id="editServiceForm">
+      <div class="grid form">
+        <div class="field">
+          <label for="editServiceName">Nama Layanan / Poli</label>
+          <input id="editServiceName" name="name" required>
+        </div>
+
+        <div class="field">
+          <label for="editServiceHospital">Fasilitas / Klinik</label>
+          <input id="editServiceHospital" name="hospital" value="Klinik SKEM" required>
+        </div>
+
+        <div class="field wide">
+          <label for="editServiceReqs">Dokumen Persyaratan Administrasi</label>
+          <input id="editServiceReqs" name="requirements" required>
+        </div>
+
+        <div class="field">
+          <label for="editServiceStatus">Status Operasional</label>
+          <select id="editServiceStatus" name="status">
+            <option value="Aktif">Aktif</option>
+            <option value="Nonaktif">Nonaktif</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button type="button" class="btn" id="btnCancelEditService">Batal</button>
+        <button type="submit" class="btn primary">Simpan Perubahan</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const addServiceModal = document.getElementById('addServiceModal');
+const editServiceModal = document.getElementById('editServiceModal');
+const editServiceForm = document.getElementById('editServiceForm');
+const openAddService = document.getElementById('btnOpenAddService');
+const closeAddService = document.getElementById('closeAddServiceModal');
+const cancelAddService = document.getElementById('btnCancelAddService');
+const closeEditService = document.getElementById('closeEditServiceModal');
+const cancelEditService = document.getElementById('btnCancelEditService');
+
+if(openAddService && addServiceModal) openAddService.onclick = () => addServiceModal.classList.add('show');
+if(closeAddService && addServiceModal) closeAddService.onclick = () => addServiceModal.classList.remove('show');
+if(cancelAddService && addServiceModal) cancelAddService.onclick = () => addServiceModal.classList.remove('show');
+if(closeEditService && editServiceModal) closeEditService.onclick = () => editServiceModal.classList.remove('show');
+if(cancelEditService && editServiceModal) cancelEditService.onclick = () => editServiceModal.classList.remove('show');
+
+document.querySelectorAll('[data-edit-service]').forEach(button => {
+  button.addEventListener('click', () => {
+    document.getElementById('editServiceName').value = button.dataset.name;
+    document.getElementById('editServiceHospital').value = button.dataset.hospital || 'Klinik SKEM';
+    document.getElementById('editServiceReqs').value = button.dataset.requirements;
+    document.getElementById('editServiceStatus').value = button.dataset.status;
+    editServiceForm.action = `/system/services/edit/${button.dataset.id}`;
+    editServiceModal.classList.add('show');
+  });
+});
+
+window.onclick = e => {
+  if(e.target === addServiceModal) addServiceModal.classList.remove('show');
+  if(e.target === editServiceModal) editServiceModal.classList.remove('show');
+};
+</script>
+{% endblock %}

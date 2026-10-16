@@ -118,6 +118,9 @@
                 <button type="button" class="btn btn-sm btn-view-rx"
                   data-id="{{ rx.id }}"
                   data-patient="{{ rx.patient_name }}"
+                  data-patient-id="{{ rx.patient_id }}"
+                  data-queue="{{ rx.queue_no | default('-') }}"
+                  data-date="{{ rx.date }}"
                   data-clinic="{{ rx.clinic }}"
                   data-doctor="{{ rx.doctor }}"
                   data-counter="{{ rx.counter }}"
@@ -331,7 +334,7 @@
 
       <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:10px;">
         <button type="button" class="btn" id="btnCloseInspectRxBottom">Tutup</button>
-        <button type="button" class="btn primary" onclick="window.print()">Cetak Resep</button>
+        <button type="button" class="btn primary" id="btnModalPrintRx">🖨️ Cetak Resep</button>
       </div>
     </div>
   </div>
@@ -412,10 +415,10 @@ if (btnAddMedRow && medRowsContainer) {
 // Modal Inspect Rincian Resep
 const modalInspectRx = document.getElementById('modalInspectRx');
 const btnCloseInspectRx = document.getElementById('btnCloseInspectRx');
-const btnCloseInspectRxBottom = document.getElementById('btnCloseInspectRxBottom');
-
 if (btnCloseInspectRx) btnCloseInspectRx.onclick = () => modalInspectRx.classList.remove('show');
 if (btnCloseInspectRxBottom) btnCloseInspectRxBottom.onclick = () => modalInspectRx.classList.remove('show');
+
+let currentInspectedRx = null;
 
 document.querySelectorAll('.btn-view-rx').forEach(btn => {
   btn.onclick = () => {
@@ -430,6 +433,20 @@ document.querySelectorAll('.btn-view-rx').forEach(btn => {
     try {
       meds = JSON.parse(btn.dataset.meds || '[]');
     } catch(e) {}
+
+    currentInspectedRx = {
+      id: id,
+      patient_name: patient,
+      patient_id: btn.dataset.patientId || ('P-' + id.replace(/[^0-9]/g, '')),
+      queue_no: btn.dataset.queue || '-',
+      date: btn.dataset.date || new Date().toISOString().slice(0, 10),
+      clinic: clinic,
+      doctor: doctor,
+      counter: counter,
+      status: status,
+      notes: notes,
+      medications: meds
+    };
 
     document.getElementById('inspectRxTitle').textContent = 'Rincian Resep ' + id;
     document.getElementById('inspectRxId').textContent = id;
@@ -459,6 +476,17 @@ document.querySelectorAll('.btn-view-rx').forEach(btn => {
     modalInspectRx.classList.add('show');
   };
 });
+
+const btnModalPrintRx = document.getElementById('btnModalPrintRx');
+if (btnModalPrintRx) {
+  btnModalPrintRx.onclick = () => {
+    if (currentInspectedRx && typeof printPrescription === 'function') {
+      printPrescription(currentInspectedRx);
+    } else {
+      window.print();
+    }
+  };
+}
 </script>
 {% endblock %}
 

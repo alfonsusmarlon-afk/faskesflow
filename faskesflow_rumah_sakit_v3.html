@@ -1,0 +1,2572 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FaskesFlow - Prototype Sistem Alur Pasien & Rujukan Faskes 2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --navy: #151e28;
+  --navy-light: #223040;
+  --blue: #165b85;
+  --blue-hover: #114769;
+  --blue-light: #e8f2f8;
+  --blue-border: #bcd5e6;
+  --bg: #f4f6f9;
+  --card-bg: #ffffff;
+  --line: #dbe2ea;
+  --text: #1e293b;
+  --text-muted: #64748b;
+  --green: #15803d;
+  --green-bg: #f0fdf4;
+  --green-border: #bbf7d0;
+  --amber: #b45309;
+  --amber-bg: #fffbeb;
+  --amber-border: #fde68a;
+  --purple: #6d28d9;
+  --purple-bg: #faf5ff;
+  --purple-border: #ddd6fe;
+  --red: #b91c1c;
+  --red-bg: #fef2f2;
+  --red-border: #fecaca;
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.55 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+button, input, select, textarea { font: inherit; }
+
+/* LAYOUT */
+.shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 240px 1fr;
+}
+.side {
+  background: var(--navy);
+  color: #fff;
+  padding: 20px 14px;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid rgba(255,255,255,0.06);
+}
+.brand-wrap {
+  padding: 4px 8px 20px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  margin-bottom: 16px;
+}
+.brand-title {
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.4px;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.brand-title .logo-badge {
+  background: linear-gradient(135deg, #0284c7, #2563eb);
+  color: #fff;
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  display: grid;
+  place-items: center;
+  font-size: 14px;
+}
+.brand-sub {
+  color: #94a3b8;
+  font-size: 11.5px;
+  margin-top: 4px;
+  display: block;
+  font-weight: 500;
+}
+.nav-section-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #64748b;
+  padding: 8px 12px 4px;
+  font-weight: 700;
+}
+.nav {
+  display: grid;
+  gap: 3px;
+}
+.nav button {
+  border: 0;
+  background: transparent;
+  color: #cbd5e1;
+  padding: 10px 12px;
+  border-radius: 6px;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.15s ease;
+}
+.nav button:hover {
+  background: var(--navy-light);
+  color: #fff;
+}
+.nav button.active {
+  background: var(--blue);
+  color: #fff;
+  font-weight: 700;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+.side-foot {
+  margin-top: auto;
+  border-top: 1px solid rgba(255,255,255,0.08);
+  padding: 14px 8px 0;
+  color: #94a3b8;
+  font-size: 12px;
+}
+
+/* TOPBAR */
+.top {
+  height: 68px;
+  background: #fff;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 28px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  box-shadow: var(--shadow-sm);
+}
+.top-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.top-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.2;
+}
+.top-subtitle {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.top-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.role-badge-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #f8fafc;
+  padding: 5px 10px 5px 14px;
+  border-radius: 30px;
+  border: 1px solid var(--line);
+}
+.role-badge-box select {
+  border: 1px solid #cbd5e1;
+  border-radius: 20px;
+  padding: 6px 12px;
+  background: #fff;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--navy);
+  cursor: pointer;
+  outline: none;
+}
+.role-badge-box select:focus {
+  border-color: var(--blue);
+}
+
+/* MAIN CONTENT */
+.content {
+  padding: 24px 28px 48px;
+  max-width: 1320px;
+  margin: 0 auto;
+}
+.prototype-notice {
+  background: linear-gradient(90deg, #eff6ff, #f0fdf4);
+  border: 1px solid #bfdbfe;
+  border-left: 4px solid #2563eb;
+  padding: 11px 16px;
+  border-radius: 6px;
+  font-size: 13.5px;
+  color: #1e40af;
+  margin-bottom: 22px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: var(--shadow-sm);
+}
+.prototype-notice b { color: #1e3a8a; }
+
+/* PAGES */
+.page { display: none; }
+.page.active { display: block; animation: fadeIn 0.2s ease; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+/* HEADINGS */
+.head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+.head h1 {
+  margin: 0 0 4px;
+  font-size: 25px;
+  font-weight: 800;
+  letter-spacing: -0.4px;
+  color: #0f172a;
+}
+.muted { color: var(--text-muted); font-size: 14px; }
+
+/* BUTTONS */
+.btn {
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  color: #334155;
+  border-radius: 6px;
+  padding: 8px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+  line-height: 1.3;
+}
+.btn:hover { background: #f8fafc; border-color: #94a3b8; }
+.btn.primary {
+  background: var(--blue);
+  border-color: var(--blue);
+  color: #fff;
+}
+.btn.primary:hover {
+  background: var(--blue-hover);
+  border-color: var(--blue-hover);
+}
+.btn.success {
+  background: var(--green);
+  border-color: var(--green);
+  color: #fff;
+}
+.btn.success:hover { background: #166534; }
+.btn.purple {
+  background: var(--purple);
+  border-color: var(--purple);
+  color: #fff;
+}
+.btn.purple:hover { background: #5b21b6; }
+.btn.danger {
+  background: #fff;
+  border-color: var(--red-border);
+  color: var(--red);
+}
+.btn.danger:hover { background: var(--red-bg); }
+.btn.sm { padding: 5px 10px; font-size: 12.5px; border-radius: 4px; }
+.btn.lg { padding: 10px 18px; font-size: 15px; }
+
+/* CARDS & GRIDS */
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 18px;
+}
+.grid { display: grid; gap: 18px; }
+.cols4 { grid-template-columns: repeat(4, 1fr); }
+.cols3 { grid-template-columns: repeat(3, 1fr); }
+.cols2 { grid-template-columns: 1.35fr 0.65fr; }
+.metric { font-size: 28px; font-weight: 800; color: #0f172a; margin: 4px 0 2px; }
+.label { font-size: 13px; font-weight: 600; color: var(--text-muted); }
+.section-title { font-size: 17px; font-weight: 700; margin: 0 0 14px; color: #0f172a; }
+
+/* STATUS BADGES */
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border-radius: 20px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #e2e8f0;
+}
+.status.blue { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+.status.green { background: var(--green-bg); color: var(--green); border-color: var(--green-border); }
+.status.amber { background: var(--amber-bg); color: var(--amber); border-color: var(--amber-border); }
+.status.purple { background: var(--purple-bg); color: var(--purple); border-color: var(--purple-border); }
+.status.red { background: var(--red-bg); color: var(--red); border-color: var(--red-border); }
+
+/* TABLES */
+.table-wrap { overflow-x: auto; }
+.table { width: 100%; border-collapse: collapse; min-width: 680px; }
+.table th, .table td { padding: 12px 14px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+.table th { background: #f8fafc; color: #475569; font-size: 12.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; }
+.table tr:last-child td { border-bottom: 0; }
+.table tr:hover td { background: #fafcff; }
+
+/* QUEUE CALLOUTS */
+.patient-queue-panel {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  border: 1px solid var(--blue-border);
+  background: #fff;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.patient-queue-cell { padding: 22px 24px; }
+.patient-queue-cell:first-child {
+  background: linear-gradient(135deg, #f0f7fb, #ffffff);
+  border-right: 1px solid var(--line);
+}
+.patient-queue-value {
+  font-size: 40px;
+  font-weight: 800;
+  color: var(--blue);
+  line-height: 1.1;
+  margin: 6px 0;
+  letter-spacing: -0.5px;
+}
+.queue-gap { font-size: 14px; color: var(--text-muted); font-weight: 500; }
+.queue-gap b { color: #0f172a; }
+
+.queue-now {
+  background: #fff;
+  border: 1px solid var(--blue-border);
+  border-left: 6px solid var(--blue);
+  border-radius: 8px;
+  padding: 18px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  box-shadow: var(--shadow-sm);
+  flex-wrap: wrap;
+  gap: 14px;
+}
+.queue-now .number {
+  font-size: 42px;
+  font-weight: 800;
+  color: var(--blue);
+  letter-spacing: -1px;
+}
+
+/* LISTS & FORMS */
+.list { display: grid; gap: 10px; }
+.row {
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 14px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  background: #fff;
+}
+.form { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+.field { display: grid; gap: 6px; }
+.field label { font-size: 13px; font-weight: 700; color: #334155; }
+.field input, .field select, .field textarea {
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 9px 12px;
+  background: #fff;
+  outline: none;
+  font-size: 14px;
+}
+.field input:focus, .field select:focus, .field textarea:focus {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(22, 91, 133, 0.15);
+}
+.wide { grid-column: span 2; }
+.actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+
+/* PROFILE PICKER */
+.quickbar { margin-bottom: 18px; }
+.quickbar-title { font-size: 13px; font-weight: 700; margin-bottom: 10px; color: #334155; }
+.profile-choices { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.profile-choice {
+  position: relative;
+  border: 1.5px solid #cbd5e1;
+  background: #fff;
+  border-radius: 6px;
+  padding: 14px 16px;
+  text-align: left;
+  cursor: pointer;
+  color: var(--text);
+  transition: all 0.15s ease;
+}
+.profile-choice:hover { border-color: var(--blue); background: #f8fbfe; }
+.profile-choice.selected {
+  border-color: var(--blue);
+  background: #f0f7fb;
+  box-shadow: 0 0 0 1px var(--blue);
+}
+.profile-choice strong { display: block; font-size: 15px; margin-bottom: 3px; color: #0f172a; }
+.profile-choice span { display: block; color: var(--text-muted); font-size: 13px; }
+.profile-choice .check {
+  display: none;
+  position: absolute;
+  right: 12px;
+  top: 12px;
+  background: var(--blue);
+  color: #fff;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  text-align: center;
+  line-height: 20px;
+  font-size: 12px;
+  font-weight: 800;
+}
+.profile-choice.selected .check { display: block; }
+
+/* MODALS */
+.modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(2px);
+  z-index: 50;
+  padding: 24px;
+}
+.modal.show { display: grid; place-items: center; animation: fadeIn 0.15s ease; }
+.modal-box {
+  width: min(720px, 100%);
+  max-height: 90vh;
+  overflow-y: auto;
+  background: #fff;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  padding: 24px 28px;
+  box-shadow: var(--shadow-lg);
+}
+.modal-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 14px;
+}
+.modal-head h2 { margin: 0; font-size: 20px; font-weight: 800; color: #0f172a; }
+.icon-btn { border: 0; background: transparent; font-size: 24px; cursor: pointer; color: #94a3b8; }
+.icon-btn:hover { color: #0f172a; }
+
+/* TIMELINE */
+.timeline {
+  border-left: 2px solid #cbd5e1;
+  margin-left: 10px;
+  padding-left: 18px;
+  display: grid;
+  gap: 18px;
+}
+.event { position: relative; }
+.event:before {
+  content: "";
+  position: absolute;
+  left: -24px;
+  top: 5px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--blue);
+  box-shadow: 0 0 0 3px #fff;
+}
+
+/* TOAST */
+.toast {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  background: #0f172a;
+  color: #fff;
+  padding: 12px 18px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: all 0.25s ease;
+  z-index: 100;
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.toast.show { opacity: 1; transform: translateY(0); }
+
+/* MOBILE & PRINT */
+.mobile { display: none; }
+@media (max-width: 900px) {
+  .shell { grid-template-columns: 1fr; }
+  .side { display: none; }
+  .content { padding: 18px 16px 80px; }
+  .top { padding: 0 16px; }
+  .cols4, .cols3, .cols2, .form { grid-template-columns: 1fr; }
+  .mobile {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: #fff;
+    border-top: 1px solid var(--line);
+    z-index: 40;
+    box-shadow: 0 -2px 10px rgba(0,0,0,0.06);
+  }
+  .mobile button {
+    border: 0;
+    background: #fff;
+    padding: 12px 4px;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: #64748b;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+  }
+  .mobile button.active { color: var(--blue); font-weight: 700; }
+  .patient-queue-panel { grid-template-columns: 1fr; }
+  .patient-queue-cell:first-child { border-right: 0; border-bottom: 1px solid var(--line); }
+}
+
+@media print {
+  .side, .top, .prototype-notice, .mobile, .btn, .actions, .toast, .nav { display: none !important; }
+  .shell { display: block; }
+  .content { padding: 0; max-width: 100%; }
+  .card { border: 1px solid #999; box-shadow: none; break-inside: avoid; }
+  .page { display: none !important; }
+  .page.printing { display: block !important; }
+}
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <!-- SIDEBAR NAVIGATION -->
+  <aside class="side">
+    <div class="brand-wrap">
+      <div class="brand-title">
+        <span class="logo-badge">FF</span>
+        <span>FaskesFlow</span>
+      </div>
+      <span class="brand-sub">Sistem Alur Pasien & Rujukan Faskes 2</span>
+    </div>
+
+    <div class="nav-section-label" id="sideNavLabel">Menu Navigasi</div>
+    <nav class="nav" id="sideNav"></nav>
+
+    <div class="side-foot">
+      <b>JOINTS UGM 2026</b><br>
+      Tim: Pejuang SKEM<br>
+      <span style="font-size:11px;color:#64748b;">Healthcare Subtheme · Prototype</span>
+    </div>
+  </aside>
+
+  <!-- MAIN VIEWPORT -->
+  <main>
+    <!-- TOPBAR -->
+    <header class="top">
+      <div class="top-left">
+        <div>
+          <div class="top-title" id="roleTitle">Portal Pasien</div>
+          <div class="top-subtitle">Klinik Pratama SKEM & Mitra Faskes 2</div>
+        </div>
+      </div>
+      <div class="top-right">
+        <div class="role-badge-box">
+          <span style="font-size:12.5px;font-weight:700;color:var(--text-muted);">Lihat Sebagai:</span>
+          <select id="roleSelect">
+            <option value="patient">👤 Pasien (Dinda P.)</option>
+            <option value="facility">🏥 Petugas Klinik</option>
+            <option value="system">⚙️ Admin Sistem</option>
+          </select>
+        </div>
+        <button class="btn sm" id="btnQuickResetData" title="Reset data prototype ke kondisi awal">🔄 Reset Data</button>
+      </div>
+    </header>
+
+    <div class="content">
+      <!-- PROTOTYPE BANNER -->
+      <div class="prototype-notice">
+        <div>
+          <b>🚀 Prototype Interaktif FaskesFlow:</b> Seluruh alur (Registrasi, Verifikasi, Antrean Dinamis, Resep Farmasi, & Rujukan Faskes 2) terintegrasi penuh secara real-time di 3 role.
+        </div>
+        <div style="font-size:12px;font-weight:700;">JOINTS UGM 2026</div>
+      </div>
+
+      <!-- ========================================== -->
+      <!-- 1. PORTAL PASIEN (PATIENT PAGES)           -->
+      <!-- ========================================== -->
+
+      <!-- P-HOME: RINGKASAN & ANTREAN SAYA -->
+      <section class="page" id="p-home">
+        <div class="head">
+          <div>
+            <h1>Ringkasan pendaftaran</h1>
+            <div class="muted">Pantau status antrean, kesiapan obat farmasi, dan surat rujukan Anda.</div>
+          </div>
+          <button class="btn primary" data-open="p-register">+ Pendaftaran baru</button>
+        </div>
+
+        <!-- BANNER SURAT RUJUKAN FASKES 2 (JIKA ADA) -->
+        <div id="patientReferralBanner" style="display:none;background:var(--purple-bg);border:2px solid var(--purple-border);border-radius:8px;padding:18px 20px;margin-bottom:18px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:8px;">
+            <div style="font-size:16px;font-weight:800;color:#5b21b6;display:flex;align-items:center;gap:8px;">
+              <span>🏥</span> Surat Rujukan ke Faskes Lanjutan (Tingkat 2) Aktif
+            </div>
+            <span class="status purple" id="patRefId">SRJ-2026-0041</span>
+          </div>
+          <p style="margin:0 0 10px;color:#4c1d95;font-size:14px;line-height:1.5;" id="patRefText">
+            Anda telah dirujuk oleh Dokter Klinik SKEM ke <b>RSUD Dr. Soetomo (Spesialis Penyakit Dalam)</b>.
+          </p>
+          <button class="btn purple sm" id="btnViewMyReferral">📄 Buka Surat Rujukan Digital</button>
+        </div>
+
+        <!-- BANNER RESEP OBAT SIAP DIAMBIL (JIKA ADA) -->
+        <div id="patientRxBanner" style="display:none;background:var(--green-bg);border:2px solid var(--green-border);border-radius:8px;padding:16px 20px;margin-bottom:18px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
+          <div>
+            <div style="font-weight:800;color:#14532d;font-size:15px;display:flex;align-items:center;gap:8px;">
+              <span>💊</span> Resep Obat Siap Diambil di Loket Farmasi!
+            </div>
+            <div style="font-size:13.5px;color:#166534;margin-top:3px;" id="patRxSummary">
+              Resep RX-2026-0152 telah selesai diracik oleh apoteker.
+            </div>
+          </div>
+          <button class="btn success sm" data-open="p-prescriptions">Lihat Detail Resep & Loket</button>
+        </div>
+
+        <!-- ALERT PANGGILAN ANTREAN -->
+        <div id="patientCallAlert" style="display:none;background:#fef2f2;border:2px solid #ef4444;border-radius:8px;padding:16px 20px;margin-bottom:18px;align-items:center;gap:12px;animation:pulse 1.5s infinite;">
+          <div style="font-size:32px;">🔔</div>
+          <div>
+            <div style="font-weight:800;font-size:16px;color:#991b1b;">NOMOR ANDA SEDANG DIPANGGIL!</div>
+            <div style="font-size:14px;color:#b91c1c;">Silakan menuju <b>Loket 1 · Poli Umum</b> untuk pemeriksaan.</div>
+          </div>
+        </div>
+
+        <!-- PANEL ANTREAN PASIEN -->
+        <div class="patient-queue-panel">
+          <div class="patient-queue-cell">
+            <div class="label">Antrean yang sedang dipanggil</div>
+            <div class="patient-queue-value" id="patRunningQueue">A-001</div>
+            <div class="queue-gap">Poli Umum · Loket 1 · <span id="patQueueUpdated">Diperbarui baru saja</span></div>
+            <button class="btn sm" id="patRefreshQueueBtn" style="margin-top:12px;">🔄 Segarkan Antrean</button>
+          </div>
+          <div class="patient-queue-cell">
+            <div class="label">Nomor antrean Anda hari ini</div>
+            <div class="patient-queue-value" id="patMyQueue">A-002</div>
+            <div class="queue-gap" id="patQueueGapDesc"><b>1 antrean lagi</b> sebelum giliran Anda tiba.</div>
+          </div>
+        </div>
+
+        <!-- METRIC CARDS -->
+        <div class="grid cols4">
+          <div class="card">
+            <div class="label">Pendaftaran aktif</div>
+            <div class="metric" id="patMetricActive">1</div>
+          </div>
+          <div class="card">
+            <div class="label">Nomor antrean</div>
+            <div class="metric" style="color:var(--blue);" id="patMetricQueue">A-002</div>
+          </div>
+          <div class="card">
+            <div class="label">Resep farmasi</div>
+            <div class="metric" style="color:var(--green);" id="patMetricRx">1</div>
+          </div>
+          <div class="card">
+            <div class="label">Profil keluarga</div>
+            <div class="metric">2</div>
+          </div>
+        </div>
+
+        <br>
+        <!-- PENDAFTARAN AKTIF LIST -->
+        <div class="grid cols2">
+          <div class="card">
+            <h2 class="section-title">Kunjungan Terdaftar</h2>
+            <div class="list" id="patActiveVisitsList">
+              <!-- Rendered via JS -->
+            </div>
+          </div>
+          <div class="card">
+            <h2 class="section-title">Panduan Cepat Pasien</h2>
+            <p style="font-size:14px;color:var(--text-muted);line-height:1.6;margin:0 0 14px;">
+              FaskesFlow mengintegrasikan antrean dan riwayat Anda. Begitu nomor Anda dipanggil di loket, dokter dapat langsung menyelesaikan kunjungan atau menerbitkan rujukan Faskes 2 dan resep farmasi.
+            </p>
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;padding:12px;border-radius:6px;font-size:13px;">
+              <b>Tip:</b> Cek menu <b>Resep Obat</b> saat pemeriksaan dokter selesai untuk melihat nomor loket pengambilan obat.
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- P-REGISTER: FORMULIR PENDAFTARAN -->
+      <section class="page" id="p-register">
+        <div class="head">
+          <div>
+            <h1>Pendaftaran Pasien Baru</h1>
+            <div class="muted">Pilih profil tersimpan untuk pengisian instan atau masukkan data manual.</div>
+          </div>
+          <button class="btn" data-open="p-home">Kembali</button>
+        </div>
+
+        <div class="card">
+          <div class="quickbar">
+            <div class="quickbar-title">Pilih Profil Cepat:</div>
+            <div class="profile-choices">
+              <div class="profile-choice selected" data-profile="dinda">
+                <span class="check">✓</span>
+                <strong>Dinda Prameswari</strong>
+                <span>Profil Utama · NIK 3173••••1182</span>
+                <span style="font-size:12px;color:#94a3b8;">12 Mei 1998 · 0812-0000-1182</span>
+              </div>
+              <div class="profile-choice" data-profile="budi">
+                <span class="check">✓</span>
+                <strong>Budi Santoso</strong>
+                <span>Keluarga (Ayah) · NIK 3173••••2041</span>
+                <span style="font-size:12px;color:#94a3b8;">4 Februari 1968 · 0812-0000-2041</span>
+              </div>
+            </div>
+          </div>
+
+          <form id="formPatientRegister">
+            <div class="grid form">
+              <div class="field">
+                <label>Nama Pasien Lengkap *</label>
+                <input id="formRegName" value="Dinda Prameswari" required>
+              </div>
+              <div class="field">
+                <label>Nomor Induk Kependudukan (NIK) *</label>
+                <input id="formRegNik" value="3173015205981182" required>
+              </div>
+              <div class="field">
+                <label>Nomor WhatsApp / HP *</label>
+                <input id="formRegPhone" value="0812-0000-1182" required>
+              </div>
+              <div class="field">
+                <label>Tanggal Lahir *</label>
+                <input id="formRegDob" type="date" value="1998-05-12" required>
+              </div>
+              <div class="field">
+                <label>Poli / Layanan Tujuan *</label>
+                <select id="formRegService">
+                  <option value="Poli Umum">Poli Umum</option>
+                  <option value="Poli Gigi">Poli Gigi</option>
+                  <option value="Kesehatan Ibu & Anak (KIA)">Kesehatan Ibu & Anak (KIA)</option>
+                  <option value="Poli Lansia">Poli Lansia</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>Metode Pembiayaan *</label>
+                <select id="formRegFinance">
+                  <option value="BPJS Kesehatan">BPJS Kesehatan (Terverifikasi)</option>
+                  <option value="Mandiri / Umum">Mandiri / Pasien Umum</option>
+                </select>
+              </div>
+              <div class="field wide">
+                <label>Keluhan Utama / Catatan Tambahan</label>
+                <textarea id="formRegNotes" rows="2" placeholder="Contoh: Demam sejak 2 hari, batuk ringan..."></textarea>
+              </div>
+            </div>
+            <div class="actions">
+              <button type="button" class="btn" data-open="p-home">Batal</button>
+              <button type="submit" class="btn primary">Daftarkan Sekarang & Ambil Antrean</button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <!-- P-PRESCRIPTIONS: RESEP OBAT SAYA -->
+      <section class="page" id="p-prescriptions">
+        <div class="head">
+          <div>
+            <h1>Resep Obat & Loket Farmasi</h1>
+            <div class="muted">Pantau status peracikan obat oleh apoteker dan konfirmasi pengambilan di loket.</div>
+          </div>
+        </div>
+
+        <div class="card" id="patPrescriptionsContainer">
+          <!-- Rendered via JS -->
+        </div>
+      </section>
+
+      <!-- P-HISTORY: RIWAYAT & RUJUKAN SAYA -->
+      <section class="page" id="p-history">
+        <div class="head">
+          <div>
+            <h1>Riwayat Kunjungan & Rujukan</h1>
+            <div class="muted">Catatan riwayat kunjungan faskes dan surat rujukan digital Anda.</div>
+          </div>
+        </div>
+
+        <div class="card table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>ID Kunjungan</th>
+                <th>Tanggal</th>
+                <th>Layanan</th>
+                <th>Pembiayaan</th>
+                <th>Status Akhir</th>
+                <th>Dokumen</th>
+              </tr>
+            </thead>
+            <tbody id="patHistoryTableBody">
+              <!-- Rendered via JS -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- P-PROFILES: KELOLA PROFIL KELUARGA -->
+      <section class="page" id="p-profiles">
+        <div class="head">
+          <div>
+            <h1>Profil Keluarga Pasien</h1>
+            <div class="muted">Kelola data identitas keluarga untuk kemudahan pendaftaran di masa depan.</div>
+          </div>
+          <button class="btn primary" id="btnDemoAddProfile">+ Tambah Profil Anggota</button>
+        </div>
+
+        <div class="grid cols2" id="patProfilesList">
+          <div class="card">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+              <div>
+                <b style="font-size:16px;">Dinda Prameswari</b>
+                <span class="status blue" style="margin-left:6px;">Profil Utama</span>
+                <p class="muted" style="margin:4px 0 10px;">NIK: 3173015205981182 · Lahir: 12 Mei 1998</p>
+                <div style="font-size:13px;color:#334155;">No BPJS: 0001829482918 · HP: 0812-0000-1182</div>
+              </div>
+              <button class="btn sm btnDemo">Ubah</button>
+            </div>
+          </div>
+          <div class="card">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+              <div>
+                <b style="font-size:16px;">Budi Santoso</b>
+                <span class="status" style="margin-left:6px;">Orang Tua / Ayah</span>
+                <p class="muted" style="margin:4px 0 10px;">NIK: 3173020402682041 · Lahir: 4 Feb 1968</p>
+                <div style="font-size:13px;color:#334155;">No BPJS: 0001928472911 · HP: 0812-0000-2041</div>
+              </div>
+              <button class="btn sm btnDemo">Ubah</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========================================== -->
+      <!-- 2. PORTAL PETUGAS (FACILITY/CLINIC PAGES)   -->
+      <!-- ========================================== -->
+
+      <!-- F-DASHBOARD: OPERASIONAL HARI INI -->
+      <section class="page" id="f-dashboard">
+        <div class="head">
+          <div>
+            <h1>Dashboard Operasional Faskes</h1>
+            <div class="muted">Klinik Pratama SKEM · Pemantauan antrean, pemeriksaan, dan farmasi.</div>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn primary" data-open="f-walkin">+ Pasien Walk-in</button>
+            <button class="btn" data-open="f-queue">Meja Antrean Terpadu</button>
+          </div>
+        </div>
+
+        <div class="grid cols4">
+          <div class="card">
+            <div class="label">Pendaftaran Masuk</div>
+            <div class="metric" id="facMetricRegistered">4</div>
+            <div class="muted" style="font-size:12px;">Total pasien hari ini</div>
+          </div>
+          <div class="card">
+            <div class="label">Perlu Verifikasi</div>
+            <div class="metric" style="color:var(--amber);" id="facMetricReview">1</div>
+            <div class="muted" style="font-size:12px;">Belum diproses ke antrean</div>
+          </div>
+          <div class="card">
+            <div class="label">Dalam Antrean</div>
+            <div class="metric" style="color:var(--blue);" id="facMetricWaiting">2</div>
+            <div class="muted" style="font-size:12px;">Menunggu giliran periksa</div>
+          </div>
+          <div class="card">
+            <div class="label">Selesai / Dirujuk</div>
+            <div class="metric" style="color:var(--green);" id="facMetricDone">1</div>
+            <div class="muted" style="font-size:12px;">Kunjungan tuntas</div>
+          </div>
+        </div>
+
+        <div class="grid cols2" style="margin-top:10px;">
+          <div class="card">
+            <h2 class="section-title">Prioritas Pelayanan Hari Ini</h2>
+            <div class="list">
+              <div class="row">
+                <div>
+                  <b>1 Pendaftaran Membutuhkan Verifikasi Berkas</b>
+                  <span class="muted">Periksa kesesuaian NIK dan dokumen penjamin</span>
+                </div>
+                <button class="btn primary sm" data-open="f-review">Buka Verifikasi</button>
+              </div>
+              <div class="row">
+                <div>
+                  <b>Antrean Loket Poli Umum Sedang Aktif</b>
+                  <span class="muted">Nomor sedang berjalan: <b id="dashRunningQueue">A-001</b></span>
+                </div>
+                <button class="btn sm" data-open="f-queue">Buka Loket</button>
+              </div>
+              <div class="row">
+                <div>
+                  <b>Layanan Farmasi: Resep Siap Diserahkan</b>
+                  <span class="muted">Apotek Klinik SKEM</span>
+                </div>
+                <button class="btn sm" data-open="f-prescriptions">Buka Farmasi</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2 class="section-title">Mitra Rujukan Faskes Tingkat 2 Aktif</h2>
+            <div style="font-size:13.5px;color:var(--text-muted);margin-bottom:12px;">
+              Klinik SKEM terhubung langsung dengan rumah sakit rujukan berikut untuk penerbitan rujukan digital:
+            </div>
+            <div class="list">
+              <div style="padding:8px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;display:flex;justify-content:space-between;align-items:center;">
+                <div>
+                  <b style="font-size:13.5px;">RSUD Dr. Soetomo</b>
+                  <div class="muted" style="font-size:12px;">Tipe A · Penyakit Dalam, Bedah, Jantung</div>
+                </div>
+                <span class="status green" style="font-size:11px;">Aktif</span>
+              </div>
+              <div style="padding:8px 12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;display:flex;justify-content:space-between;align-items:center;">
+                <div>
+                  <b style="font-size:13.5px;">RSUP Dr. Kariadi</b>
+                  <div class="muted" style="font-size:12px;">Tipe A · Spesialis Mata, Saraf, Anak</div>
+                </div>
+                <span class="status green" style="font-size:11px;">Aktif</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- F-REVIEW: VERIFIKASI PENDAFTARAN -->
+      <section class="page" id="f-review">
+        <div class="head">
+          <div>
+            <h1>Verifikasi Berkas Pendaftaran</h1>
+            <div class="muted">Periksa validitas berkas pasien online sebelum diterbitkan nomor antrean.</div>
+          </div>
+        </div>
+
+        <div class="card table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>ID Formulir</th>
+                <th>Nama Pasien</th>
+                <th>Sumber</th>
+                <th>Layanan</th>
+                <th>Kelengkapan</th>
+                <th>Aksi Verifikasi</th>
+              </tr>
+            </thead>
+            <tbody id="facReviewTableBody">
+              <!-- Rendered via JS -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- F-QUEUE: MEJA ANTREAN TERPADU & TINDAKAN DOKTER -->
+      <section class="page" id="f-queue">
+        <div class="head">
+          <div>
+            <h1>Meja Antrean Terpadu & Pelayanan</h1>
+            <div class="muted">Kelola pemanggilan loket, pelayanan dokter, resep farmasi, dan rujukan Faskes 2.</div>
+          </div>
+          <button class="btn primary" data-open="f-walkin">+ Tambah Pasien Walk-in</button>
+        </div>
+
+        <!-- CALLOUT NOMOR SEDANG BERJALAN -->
+        <div class="queue-now">
+          <div>
+            <div class="label">Nomor Antrean Sedang Berjalan</div>
+            <div class="muted">Poli Umum · Loket 1</div>
+          </div>
+          <div class="number" id="facRunningQueue">A-001</div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn" id="btnPlayChime" title="Bunyikan nada lonceng loket">🔔 Bunyikan Bel</button>
+            <button class="btn primary" id="btnFacNextQueue">▶ Panggil Berikutnya</button>
+          </div>
+        </div>
+
+        <!-- TABEL ANTREAN HARIAN -->
+        <div class="card table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th style="width:70px;">Antrean</th>
+                <th>Pasien</th>
+                <th>Sumber</th>
+                <th>Poli</th>
+                <th>Status Pelayanan</th>
+                <th style="text-align:right;">Tindakan Petugas / Dokter</th>
+              </tr>
+            </thead>
+            <tbody id="facQueueTableBody">
+              <!-- Rendered via JS -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- F-PRESCRIPTIONS: RESEP & FARMASI PETUGAS -->
+      <section class="page" id="f-prescriptions">
+        <div class="head">
+          <div>
+            <h1>Kelola Resep & Loket Farmasi</h1>
+            <div class="muted">Input resep baru, perbarui status peracikan obat, dan serahkan obat ke pasien.</div>
+          </div>
+          <button class="btn primary" id="btnOpenNewRxModal">+ Input Resep Baru</button>
+        </div>
+
+        <div class="card table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>No. Resep</th>
+                <th>Pasien</th>
+                <th>Poli / Dokter</th>
+                <th>Rincian Obat</th>
+                <th>Status Apotek</th>
+                <th style="text-align:right;">Aksi Petugas Farmasi</th>
+              </tr>
+            </thead>
+            <tbody id="facRxTableBody">
+              <!-- Rendered via JS -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- F-WALKIN: PENDAFTARAN PASIEN WALK-IN -->
+      <section class="page" id="f-walkin">
+        <div class="head">
+          <div>
+            <h1>Pendaftaran Pasien Walk-in</h1>
+            <div class="muted">Daftarkan pasien yang datang langsung di meja admisi klinik.</div>
+          </div>
+          <button class="btn" data-open="f-queue">Kembali ke Antrean</button>
+        </div>
+
+        <div class="card">
+          <form id="formWalkin">
+            <div class="grid form">
+              <div class="field">
+                <label>Nama Pasien *</label>
+                <input id="walkinName" placeholder="Contoh: Siti Rahmawati" required>
+              </div>
+              <div class="field">
+                <label>Nomor NIK / Identitas *</label>
+                <input id="walkinNik" placeholder="Contoh: 3173094829100021" required>
+              </div>
+              <div class="field">
+                <label>Nomor Telepon / WhatsApp</label>
+                <input id="walkinPhone" placeholder="Contoh: 0813-9999-1234" value="0813-9999-1234">
+              </div>
+              <div class="field">
+                <label>Poli Layanan Tujuan *</label>
+                <select id="walkinService">
+                  <option value="Poli Umum">Poli Umum</option>
+                  <option value="Poli Gigi">Poli Gigi</option>
+                  <option value="Kesehatan Ibu & Anak (KIA)">Kesehatan Ibu & Anak (KIA)</option>
+                  <option value="Poli Lansia">Poli Lansia</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>Pembiayaan *</label>
+                <select id="walkinFinance">
+                  <option value="BPJS Kesehatan">BPJS Kesehatan</option>
+                  <option value="Mandiri / Umum">Mandiri / Umum</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>Status Verifikasi Berkas</label>
+                <input value="✓ Terverifikasi Langsung di Meja Admisi" readonly style="background:#f1f5f9;color:var(--green);font-weight:700;">
+              </div>
+            </div>
+            <div class="actions">
+              <button type="button" class="btn" data-open="f-queue">Batal</button>
+              <button type="submit" class="btn primary">Daftarkan & Langsung Masukkan ke Antrean</button>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <!-- F-PATIENTS: DATA PASIEN -->
+      <section class="page" id="f-patients">
+        <div class="head">
+          <div>
+            <h1>Data Pasien & Riwayat Administrasi</h1>
+            <div class="muted">Pencarian data pasien terdaftar dan ekspor laporan operasional.</div>
+          </div>
+          <button class="btn" id="btnExportCsv">📥 Unduh Laporan Pasien (CSV)</button>
+        </div>
+
+        <div class="card">
+          <div style="margin-bottom:14px;display:flex;gap:12px;align-items:center;">
+            <input id="inputPatientSearch" type="search" placeholder="🔍 Cari nama, NIK, ID, atau layanan..." style="flex:1;padding:9px 14px;border:1px solid #cbd5e1;border-radius:6px;">
+            <span class="muted" id="patientSearchCount"></span>
+          </div>
+
+          <div class="table-wrap">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>ID Pasien</th>
+                  <th>Nama Lengkap</th>
+                  <th>NIK</th>
+                  <th>No. Telepon</th>
+                  <th>Layanan</th>
+                  <th>Status Terakhir</th>
+                  <th>Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="facPatientsTableBody">
+                <!-- Rendered via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========================================== -->
+      <!-- 3. PORTAL ADMIN SISTEM (SYSTEM ADMIN PAGES)-->
+      <!-- ========================================== -->
+
+      <!-- S-DASHBOARD: ADMINISTRASI & SUPERVISI ANTREAN -->
+      <section class="page" id="s-dashboard">
+        <div class="head">
+          <div>
+            <h1>Supervisi & Administrasi Sistem</h1>
+            <div class="muted">Kontrol antrean real-time, konfigurasi klinik, dan manajemen rujukan Faskes 2.</div>
+          </div>
+        </div>
+
+        <div class="grid cols4">
+          <div class="card">
+            <div class="label">Poli Aktif</div>
+            <div class="metric">4</div>
+          </div>
+          <div class="card">
+            <div class="label">Loket Aktif</div>
+            <div class="metric">3</div>
+          </div>
+          <div class="card">
+            <div class="label">Mitra Faskes 2</div>
+            <div class="metric" style="color:var(--purple);" id="sysMetricFaskes2">4</div>
+          </div>
+          <div class="card">
+            <div class="label">Nomor Antrean Berjalan</div>
+            <div class="metric" style="color:var(--blue);" id="sysMetricQueue">A-001</div>
+          </div>
+        </div>
+
+        <!-- PANEL MANAJEMEN ANTREAN OLEH ADMIN SISTEM -->
+        <div class="card" style="border-left:5px solid var(--blue);margin-top:10px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+            <div>
+              <h2 class="section-title" style="margin:0;">Manajemen & Kontrol Nomor Antrean Klinik</h2>
+              <div class="muted" style="font-size:13.5px;margin-top:2px;">
+                Admin sistem berwenang mengedit nomor berjalan atau mereset antrean harian klinik.
+              </div>
+            </div>
+            <span class="status green">● Auto Daily Reset Aktif</span>
+          </div>
+
+          <div class="grid cols2" style="align-items:start;">
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;padding:16px;border-radius:6px;">
+              <div class="label">Nomor Sedang Berjalan Saat Ini:</div>
+              <div style="font-size:42px;font-weight:800;color:var(--blue);margin:4px 0;" id="sysDisplayQueue">A-001</div>
+              <div style="font-size:13px;color:var(--text-muted);">
+                Loket: <b>Loket 1 (Poli Umum)</b><br>
+                Terakhir Diperbarui: <span id="sysLastQueueUpdate">Hari Ini</span>
+              </div>
+            </div>
+
+            <div style="background:#fff;border:1px solid #e2e8f0;padding:16px;border-radius:6px;">
+              <b style="display:block;margin-bottom:8px;font-size:14px;">Aksi Supervisi Admin:</b>
+              <div style="display:flex;gap:10px;margin-bottom:10px;">
+                <input id="inputAdminQueue" value="A-001" style="width:110px;padding:8px 10px;border:1px solid #cbd5e1;border-radius:6px;font-weight:700;">
+                <button class="btn primary sm" id="btnAdminSetQueue">Simpan Nomor</button>
+              </div>
+              <button class="btn danger sm" id="btnAdminResetQueue" style="width:100%;">
+                🔄 Reset Nomor Antrean Hari Ini ke A-000
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- LOG AKTIVITAS -->
+        <div class="card">
+          <h2 class="section-title">Log Transaksi Sistem Terakhir</h2>
+          <div class="timeline" id="sysActivityLog">
+            <!-- Rendered via JS -->
+          </div>
+        </div>
+      </section>
+
+      <!-- S-FACILITIES: MITRA FASKES TINGKAT 2 & POLI -->
+      <section class="page" id="s-facilities">
+        <div class="head">
+          <div>
+            <h1>Mitra Faskes Tingkat 2 & Persyaratan</h1>
+            <div class="muted">Konfigurasi rumah sakit rujukan sekunder dan kriteria dokumen pendaftaran.</div>
+          </div>
+          <button class="btn primary btnDemo">+ Tambah Mitra RS</button>
+        </div>
+
+        <div class="card table-wrap">
+          <h2 class="section-title">Daftar Rumah Sakit Mitra Faskes Tingkat 2 (Rujukan Digital)</h2>
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Nama Rumah Sakit Rujukan</th>
+                <th>Tipe</th>
+                <th>Poli Spesialis Tersedia</th>
+                <th>Status Integrasi</th>
+                <th>Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="sysFaskes2TableBody">
+              <!-- Rendered via JS -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- S-USERS: MANAJEMEN AKUN & AKSES -->
+      <section class="page" id="s-users">
+        <div class="head">
+          <div>
+            <h1>Akun & Hak Akses Pengguna</h1>
+            <div class="muted">Manajemen autentikasi (Google OAuth / Akun Petugas & Admin).</div>
+          </div>
+          <button class="btn primary btnDemo">+ Tambah Akun</button>
+        </div>
+
+        <div class="card table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Pengguna</th>
+                <th>Email / Identitas</th>
+                <th>Metode Masuk</th>
+                <th>Hak Akses (Role)</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><b>Dinda Prameswari</b></td>
+                <td>pasien@local (dinda@gmail.com)</td>
+                <td><span class="status blue">Google OAuth</span></td>
+                <td>Pasien</td>
+                <td><span class="status green">Aktif</span></td>
+              </tr>
+              <tr>
+                <td><b>Petugas Meja Admisi</b></td>
+                <td>petugas@local</td>
+                <td><span class="status">Email & Password</span></td>
+                <td>Petugas Faskes</td>
+                <td><span class="status green">Aktif</span></td>
+              </tr>
+              <tr>
+                <td><b>Administrator Sistem</b></td>
+                <td>admin@local</td>
+                <td><span class="status">Email & Password</span></td>
+                <td>Admin Sistem</td>
+                <td><span class="status green">Aktif</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<!-- BOTTOM MOBILE NAVIGATION -->
+<nav class="mobile" id="mobileNav"></nav>
+
+<!-- ========================================== -->
+<!-- MODAL 1: SELESAIKAN KUNJUNGAN / RUJUKAN    -->
+<!-- ========================================== -->
+<div class="modal" id="modalCompleteVisit">
+  <div class="modal-box">
+    <div class="modal-head">
+      <div>
+        <h2>Selesaikan Kunjungan Pasien</h2>
+        <div class="muted" id="completeModalSubtitle">Poli Umum · Pasien: Dinda Prameswari</div>
+      </div>
+      <button class="icon-btn" id="closeCompleteModal">&times;</button>
+    </div>
+
+    <form id="formCompleteVisitAction">
+      <input type="hidden" id="completePatientId">
+      <input type="hidden" id="completePatientName">
+      <input type="hidden" id="completeQueueNo">
+
+      <!-- INPUT RESEP FARMASI -->
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;padding:16px;border-radius:6px;margin-bottom:16px;">
+        <b style="font-size:14.5px;color:var(--navy);display:flex;align-items:center;gap:6px;margin-bottom:8px;">
+          <span>💊</span> Resep Obat Farmasi (Opsional)
+        </b>
+        <div class="field" style="margin-bottom:8px;">
+          <label>Daftar Obat & Aturan Pakai</label>
+          <textarea id="completeRxMeds" rows="2" placeholder="Contoh: Paracetamol 500mg 3x1 tablet sesudah makan, Vitamin C 1x1 tablet"></textarea>
+        </div>
+        <div class="field">
+          <label>Catatan untuk Apoteker</label>
+          <input id="completeRxNotes" placeholder="Contoh: Berikan edukasi diminum teratur sesudah makan">
+        </div>
+      </div>
+
+      <!-- KEPUTUSAN KUNJUNGAN -->
+      <div style="margin-bottom:16px;">
+        <label style="font-weight:700;font-size:14px;display:block;margin-bottom:8px;">Keputusan Akhir Kunjungan Dokter *</label>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <label style="border:1.5px solid #cbd5e1;padding:14px;border-radius:6px;cursor:pointer;background:#fff;" id="labelOutcomeFinish">
+            <input type="radio" name="visitOutcome" value="finish" checked style="margin-right:6px;">
+            <b style="color:var(--green);">✓ Selesai di Faskes Ini</b>
+            <div class="muted" style="font-size:12px;margin-top:4px;">Pasien tuntas ditangani di klinik & ambil obat di farmasi.</div>
+          </label>
+          <label style="border:1.5px solid #cbd5e1;padding:14px;border-radius:6px;cursor:pointer;background:#fff;" id="labelOutcomeRefer">
+            <input type="radio" name="visitOutcome" value="refer" style="margin-right:6px;">
+            <b style="color:var(--purple);">↗ Rujuk ke Faskes Tingkat 2</b>
+            <div class="muted" style="font-size:12px;margin-top:4px;">Pasien membutuhkan penanganan spesialis lanjutan di RS.</div>
+          </label>
+        </div>
+      </div>
+
+      <!-- FORM RUJUKAN LANJUTAN (CONDITIONAL) -->
+      <div id="referralFieldsBox" style="display:none;background:var(--purple-bg);border:1.5px solid var(--purple-border);padding:16px;border-radius:6px;margin-bottom:16px;">
+        <b style="color:#5b21b6;font-size:14px;display:block;margin-bottom:10px;">🏥 Detail Surat Rujukan Faskes Tingkat 2:</b>
+        <div class="grid form">
+          <div class="field">
+            <label>Rumah Sakit Rujukan Tujuan *</label>
+            <select id="completeRefHospital">
+              <option value="RSUD Dr. Soetomo">RSUD Dr. Soetomo (Tipe A)</option>
+              <option value="RSUP Dr. Kariadi">RSUP Dr. Kariadi (Tipe A)</option>
+              <option value="RSUP Persahabatan">RSUP Persahabatan (Tipe A)</option>
+              <option value="RS Jantung Harapan Kita">RS Jantung Harapan Kita (Rujukan Khusus)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Poli Spesialis Rujukan *</label>
+            <select id="completeRefClinic">
+              <option value="Spesialis Penyakit Dalam">Spesialis Penyakit Dalam</option>
+              <option value="Spesialis Jantung & Pembuluh Darah">Spesialis Jantung & Pembuluh Darah</option>
+              <option value="Spesialis Bedah Umum">Spesialis Bedah Umum</option>
+              <option value="Spesialis Mata">Spesialis Mata</option>
+              <option value="Spesialis Saraf (Neurologi)">Spesialis Saraf (Neurologi)</option>
+              <option value="Spesialis Anak (Pediatri)">Spesialis Anak (Pediatri)</option>
+            </select>
+          </div>
+          <div class="field wide">
+            <label>Alasan Klinis & Indikasi Medis Rujukan *</label>
+            <textarea id="completeRefNotes" rows="2" placeholder="Contoh: Pasien memerlukan pemeriksaan echocardiography lanjutan dan evaluasi spesialis jantung."></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button type="button" class="btn" id="btnCancelCompleteModal">Batal</button>
+        <button type="submit" class="btn primary" id="btnSubmitCompleteAction">Simpan & Selesaikan Kunjungan</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ========================================== -->
+<!-- MODAL 2: SURAT RUJUKAN DIGITAL (OFFICIAL)   -->
+<!-- ========================================== -->
+<div class="modal" id="modalReferralLetter">
+  <div class="modal-box" style="max-width:680px;">
+    <div class="modal-head">
+      <h2>Surat Rujukan Digital Faskes Tingkat 2</h2>
+      <button class="icon-btn" id="closeReferralModal">&times;</button>
+    </div>
+    <div id="referralLetterContent" style="background:#fff;border:1px solid #cbd5e1;padding:24px;border-radius:6px;font-size:14px;color:#0f172a;line-height:1.6;">
+      <!-- Generated via JS -->
+    </div>
+    <div class="actions" style="margin-top:16px;">
+      <button class="btn" id="btnPrintReferral">🖨️ Cetak / Unduh Dokumen</button>
+      <button class="btn primary" id="btnCloseRefLetterBtn">Tutup</button>
+    </div>
+  </div>
+</div>
+
+<!-- ========================================== -->
+<!-- MODAL 3: INPUT RESEP OBAT BARU            -->
+<!-- ========================================== -->
+<div class="modal" id="modalNewRx">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h2>Input Resep Obat Farmasi</h2>
+      <button class="icon-btn" id="closeNewRxModal">&times;</button>
+    </div>
+    <form id="formNewRxAction">
+      <div class="grid form">
+        <div class="field">
+          <label>Pilih Pasien Terdaftar *</label>
+          <select id="newRxPatientSelect">
+            <!-- Populated via JS -->
+          </select>
+        </div>
+        <div class="field">
+          <label>Poli / Dokter Pemeriksa</label>
+          <input id="newRxDoctor" value="Poli Umum · dr. Hendra Wijaya, Sp.PD" required>
+        </div>
+        <div class="field wide">
+          <label>Daftar Obat & Aturan Minum *</label>
+          <textarea id="newRxMeds" rows="3" placeholder="Contoh: Amoxicillin 500mg 3x1 tab sesudah makan, Paracetamol 500mg 3x1 prn" required></textarea>
+        </div>
+        <div class="field">
+          <label>Loket Pengambilan Obat</label>
+          <select id="newRxCounter">
+            <option value="Loket Farmasi 1">Loket Farmasi 1</option>
+            <option value="Loket Farmasi 2">Loket Farmasi 2</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Instruksi Khusus</label>
+          <input id="newRxNotes" placeholder="Contoh: Habiskan antibiotik">
+        </div>
+      </div>
+      <div class="actions">
+        <button type="button" class="btn" id="btnCancelNewRx">Batal</button>
+        <button type="submit" class="btn primary">Simpan & Kirim ke Farmasi</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ========================================== -->
+<!-- MODAL 4: DETAIL PASIEN & FORMULIR PDF      -->
+<!-- ========================================== -->
+<div class="modal" id="modalPatientDetail">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h2>Formulir & Data Pasien</h2>
+      <button class="icon-btn" id="closePatientModal">&times;</button>
+    </div>
+    <div id="patientModalBody"></div>
+    <div class="actions">
+      <button class="btn" id="btnPrintFormPdf">🖨️ Cetak Ringkasan</button>
+      <button class="btn primary" id="btnClosePatientModalBtn">Tutup</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST NOTIFICATION -->
+<div class="toast" id="toast">
+  <span id="toastIcon">✓</span>
+  <span id="toastMsg">Pesan sistem</span>
+</div>
+
+<!-- ========================================== -->
+<!-- JAVASCRIPT LOGIC & REACTIVE STATE          -->
+<!-- ========================================== -->
+<script>
+/**
+ * FaskesFlow Standalone Prototype Engine
+ * Subtema Healthcare - JOINTS UGM 2026
+ * Tim: Pejuang SKEM
+ */
+
+// 1. INITIAL DEMO STATE
+const DEFAULT_STATE = {
+  runningQueue: 'A-001',
+  lastResetDate: '16 Okt 2026',
+  patients: [
+    {
+      id: 'P001',
+      formId: 'FF-0152',
+      name: 'Dinda Prameswari',
+      nik: '3173015205981182',
+      phone: '0812-0000-1182',
+      dob: '1998-05-12',
+      service: 'Poli Umum',
+      finance: 'BPJS Kesehatan',
+      queueNo: 'A-002',
+      status: 'Menunggu', // 'Menunggu', 'Dipanggil', 'Dalam Pelayanan', 'Selesai di Faskes Ini', 'Dirujuk ke Faskes 2'
+      source: 'Online (Google)',
+      date: '16 Okt 2026',
+      notes: 'Demam dan pusing 2 hari',
+      referral: null
+    },
+    {
+      id: 'P002',
+      formId: 'FF-0154',
+      name: 'Budi Santoso',
+      nik: '3173020402682041',
+      phone: '0812-0000-2041',
+      dob: '1968-02-04',
+      service: 'Poli Gigi',
+      finance: 'BPJS Kesehatan',
+      queueNo: 'A-003',
+      status: 'Perlu Verifikasi',
+      source: 'Online (Manual)',
+      date: '16 Okt 2026',
+      notes: 'Pemeriksaan gigi geraham',
+      referral: null
+    },
+    {
+      id: 'P003',
+      formId: 'FF-0155',
+      name: 'Nadia Putri',
+      nik: '3173094829100021',
+      phone: '0812-0000-3320',
+      dob: '2001-08-19',
+      service: 'Poli Umum',
+      finance: 'Mandiri / Umum',
+      queueNo: 'A-001',
+      status: 'Dalam Pelayanan',
+      source: 'Walk-in',
+      date: '16 Okt 2026',
+      notes: 'Pemeriksaan rutin tekanan darah',
+      referral: null
+    },
+    {
+      id: 'P004',
+      formId: 'FF-0149',
+      name: 'Sari Wulandari',
+      nik: '3173081928472911',
+      phone: '0812-0000-5521',
+      dob: '1995-11-23',
+      service: 'KIA',
+      finance: 'BPJS Kesehatan',
+      queueNo: 'A-000',
+      status: 'Selesai di Faskes Ini',
+      source: 'Online',
+      date: '15 Okt 2026',
+      notes: 'Kontrol kehamilan trimester 2',
+      referral: null
+    }
+  ],
+  prescriptions: [
+    {
+      id: 'RX-2026-0041',
+      patientId: 'P001',
+      patientName: 'Dinda Prameswari',
+      clinic: 'Poli Umum',
+      doctor: 'dr. Hendra Wijaya, Sp.PD',
+      medications: 'Paracetamol 500mg 3x1 tablet sesudah makan, Vitamin C 500mg 1x1 tablet',
+      counter: 'Loket Farmasi 1',
+      notes: 'Diminum teratur, istirahat cukup',
+      status: 'Siap Diambil di Loket Farmasi', // 'Sedang Diracik', 'Siap Diambil di Loket Farmasi', 'Sudah Diserahkan'
+      date: '16 Okt 2026'
+    },
+    {
+      id: 'RX-2026-0039',
+      patientId: 'P003',
+      patientName: 'Nadia Putri',
+      clinic: 'Poli Umum',
+      doctor: 'dr. Hendra Wijaya, Sp.PD',
+      medications: 'Amlodipine 5mg 1x1 tablet pagi hari',
+      counter: 'Loket Farmasi 2',
+      notes: 'Kontrol tekanan darah berkala',
+      status: 'Sedang Diracik',
+      date: '16 Okt 2026'
+    }
+  ],
+  hospitalPartners: [
+    { name: 'RSUD Dr. Soetomo', type: 'Tipe A', clinics: 'Penyakit Dalam, Bedah, Jantung, Paru', status: 'Terhubung' },
+    { name: 'RSUP Dr. Kariadi', type: 'Tipe A', clinics: 'Mata, Saraf, Anak, THT', status: 'Terhubung' },
+    { name: 'RSUP Persahabatan', type: 'Tipe A', clinics: 'Respirasi, Paru & Bedah Toraks', status: 'Terhubung' },
+    { name: 'RS Jantung Harapan Kita', type: 'Rujukan Khusus', clinics: 'Kardiologi & Bedah Jantung', status: 'Terhubung' }
+  ],
+  activityLogs: [
+    { time: '16 Okt 2026 08:30', text: 'Sistem autodeploy & sinkronisasi data demo aktif.' },
+    { time: '16 Okt 2026 08:45', text: 'Nomor antrean A-001 dipanggil ke Loket 1 Poli Umum.' },
+    { time: '16 Okt 2026 09:00', text: 'Resep RX-2026-0041 (Dinda P.) ditandai siap diambil di Farmasi.' }
+  ]
+};
+
+// Clone deep from default
+let state = JSON.parse(localStorage.getItem('faskesflow_proto_state') || 'null');
+if (!state) {
+  state = JSON.parse(JSON.stringify(DEFAULT_STATE));
+  saveState();
+}
+
+function saveState() {
+  localStorage.setItem('faskesflow_proto_state', JSON.stringify(state));
+}
+
+function logActivity(text) {
+  const now = new Date();
+  const timeStr = `${now.getDate()} Okt 2026 ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+  state.activityLogs.unshift({ time: timeStr, text: text });
+  if (state.activityLogs.length > 20) state.activityLogs.pop();
+  saveState();
+}
+
+// 2. AUDIO SYNTHESIS CHIME (DING DONG)
+function playChime() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const now = ctx.currentTime;
+    
+    // First tone (G5)
+    const osc1 = ctx.createOscillator();
+    const gain1 = ctx.createGain();
+    osc1.frequency.setValueAtTime(784, now);
+    gain1.gain.setValueAtTime(0.25, now);
+    gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+    osc1.connect(gain1);
+    gain1.connect(ctx.destination);
+    osc1.start(now);
+    osc1.stop(now + 0.5);
+
+    // Second tone (E5)
+    const osc2 = ctx.createOscillator();
+    const gain2 = ctx.createGain();
+    osc2.frequency.setValueAtTime(659.25, now + 0.28);
+    gain2.gain.setValueAtTime(0.28, now + 0.28);
+    gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.9);
+    osc2.connect(gain2);
+    gain2.connect(ctx.destination);
+    osc2.start(now + 0.28);
+    osc2.stop(now + 0.9);
+  } catch(e) {
+    console.log('Audio chime not supported');
+  }
+}
+
+// 3. ROLE CONFIG & NAVIGATION
+const roleConfig = {
+  patient: {
+    title: 'Portal Pasien (Dinda Prameswari)',
+    home: 'p-home',
+    items: [
+      ['Ringkasan & Antrean', 'p-home', '📊'],
+      ['Pendaftaran Baru', 'p-register', '📝'],
+      ['Resep Obat Farmasi', 'p-prescriptions', '💊'],
+      ['Riwayat & Rujukan', 'p-history', '📂'],
+      ['Profil Pasien', 'p-profiles', '👤']
+    ]
+  },
+  facility: {
+    title: 'Portal Petugas Faskes (Klinik SKEM)',
+    home: 'f-dashboard',
+    items: [
+      ['Dashboard Operasional', 'f-dashboard', '🏥'],
+      ['Verifikasi Berkas', 'f-review', '📋'],
+      ['Meja Antrean Terpadu', 'f-queue', '🔢'],
+      ['Resep & Farmasi', 'f-prescriptions', '💊'],
+      ['Pendaftaran Walk-in', 'f-walkin', '🚶'],
+      ['Data Pasien', 'f-patients', '👥']
+    ]
+  },
+  system: {
+    title: 'Supervisi & Pengaturan Sistem',
+    home: 's-dashboard',
+    items: [
+      ['Supervisi Antrean', 's-dashboard', '⚙️'],
+      ['Mitra Faskes Tingkat 2', 's-facilities', '🌐'],
+      ['Akun & Hak Akses', 's-users', '🛡️']
+    ]
+  }
+};
+
+let currentRole = 'patient';
+const sideNav = document.getElementById('sideNav');
+const mobileNav = document.getElementById('mobileNav');
+const roleTitle = document.getElementById('roleTitle');
+const roleSelect = document.getElementById('roleSelect');
+const pages = [...document.querySelectorAll('.page')];
+
+function setRole(r) {
+  currentRole = r;
+  roleSelect.value = r;
+  roleTitle.textContent = roleConfig[r].title;
+  renderNav();
+  showPage(roleConfig[r].home);
+}
+
+function renderNav() {
+  const c = roleConfig[currentRole];
+  sideNav.innerHTML = c.items.map(([name, id, icon]) => `
+    <button data-page="${id}">
+      <span>${icon}</span>
+      <span>${name}</span>
+    </button>
+  `).join('');
+
+  mobileNav.innerHTML = c.items.slice(0, 4).map(([name, id, icon]) => `
+    <button data-page="${id}">
+      <span style="font-size:16px;">${icon}</span>
+      <span>${name.split(' ')[0]}</span>
+    </button>
+  `).join('');
+
+  document.querySelectorAll('[data-page]').forEach(btn => {
+    btn.onclick = () => showPage(btn.dataset.page);
+  });
+}
+
+function showPage(id) {
+  pages.forEach(p => p.classList.toggle('active', p.id === id));
+  document.querySelectorAll('[data-page]').forEach(b => {
+    b.classList.toggle('active', b.dataset.page === id);
+  });
+  window.scrollTo(0, 0);
+  refreshAllViews();
+}
+
+roleSelect.onchange = (e) => setRole(e.target.value);
+document.querySelectorAll('[data-open]').forEach(b => b.onclick = () => showPage(b.dataset.open));
+
+// 4. TOAST NOTIFICATION HELPER
+function showToast(msg, icon = '✓') {
+  const t = document.getElementById('toast');
+  document.getElementById('toastMsg').textContent = msg;
+  document.getElementById('toastIcon').textContent = icon;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2600);
+}
+
+// 5. RENDER FUNCTIONS FOR ALL VIEWS
+function refreshAllViews() {
+  renderPatientHome();
+  renderPatientPrescriptions();
+  renderPatientHistory();
+  renderFacilityDashboard();
+  renderFacilityReview();
+  renderFacilityQueue();
+  renderFacilityPrescriptions();
+  renderFacilityPatients();
+  renderSystemDashboard();
+  renderSystemFacilities();
+}
+
+// RENDER PATIENT HOME
+function renderPatientHome() {
+  const dinda = state.patients.find(p => p.id === 'P001') || state.patients[0];
+  const running = state.runningQueue;
+  document.getElementById('patRunningQueue').textContent = running;
+  document.getElementById('patMyQueue').textContent = dinda.queueNo;
+  document.getElementById('patMetricQueue').textContent = dinda.queueNo;
+
+  // Queue gap calculation
+  const curNum = parseInt(running.replace(/\D/g, '')) || 0;
+  const myNum = parseInt(dinda.queueNo.replace(/\D/g, '')) || 0;
+  const gap = myNum - curNum;
+
+  const gapEl = document.getElementById('patQueueGapDesc');
+  const alertEl = document.getElementById('patientCallAlert');
+
+  if (gap === 0 && dinda.status !== 'Selesai di Faskes Ini' && dinda.status !== 'Dirujuk ke Faskes 2') {
+    gapEl.innerHTML = '<b style="color:var(--green);">Nomor antrean Anda sedang dipanggil ke Loket 1!</b>';
+    alertEl.style.display = 'flex';
+  } else if (gap > 0) {
+    gapEl.innerHTML = `<b>${gap} antrean lagi</b> sebelum giliran Anda tiba.`;
+    alertEl.style.display = 'none';
+  } else {
+    gapEl.innerHTML = `<span class="muted">Kunjungan ${dinda.status}.</span>`;
+    alertEl.style.display = 'none';
+  }
+
+  // Active visits list
+  const activeList = document.getElementById('patActiveVisitsList');
+  activeList.innerHTML = `
+    <div class="row">
+      <div>
+        <b style="font-size:15px;">${dinda.service} · Klinik SKEM</b>
+        <span class="muted">${dinda.date} · No. Formulir: ${dinda.formId}</span>
+      </div>
+      <span class="status ${dinda.status === 'Selesai di Faskes Ini' ? 'green' : dinda.status === 'Dirujuk ke Faskes 2' ? 'purple' : 'blue'}">
+        ${dinda.status} · ${dinda.queueNo}
+      </span>
+    </div>
+  `;
+
+  // Referral banner check
+  const refBanner = document.getElementById('patientReferralBanner');
+  if (dinda.referral) {
+    refBanner.style.display = 'block';
+    document.getElementById('patRefId').textContent = dinda.referral.id;
+    document.getElementById('patRefText').innerHTML = `
+      Anda telah dirujuk oleh Dokter Klinik SKEM ke <b>${dinda.referral.hospital} (${dinda.referral.clinic})</b>.<br>
+      <i>Catatan: ${dinda.referral.notes || 'Pemeriksaan lanjutan'}</i>
+    `;
+    document.getElementById('btnViewMyReferral').onclick = () => openReferralModal(dinda.referral, dinda);
+  } else {
+    refBanner.style.display = 'none';
+  }
+
+  // Prescription banner check
+  const myRx = state.prescriptions.find(rx => rx.patientId === dinda.id);
+  const rxBanner = document.getElementById('patientRxBanner');
+  if (myRx && myRx.status === 'Siap Diambil di Loket Farmasi') {
+    rxBanner.style.display = 'flex';
+    document.getElementById('patRxSummary').textContent = `Resep ${myRx.id} (${myRx.medications.substring(0, 35)}...) siap diambil di ${myRx.counter}.`;
+  } else {
+    rxBanner.style.display = 'none';
+  }
+
+  // Metrics
+  document.getElementById('patMetricActive').textContent = state.patients.filter(p => p.id === 'P001' && p.status !== 'Selesai di Faskes Ini').length;
+  document.getElementById('patMetricRx').textContent = state.prescriptions.filter(rx => rx.patientId === 'P001').length;
+}
+
+// RENDER PATIENT PRESCRIPTIONS
+function renderPatientPrescriptions() {
+  const container = document.getElementById('patPrescriptionsContainer');
+  const dinda = state.patients.find(p => p.id === 'P001') || state.patients[0];
+  const myRxList = state.prescriptions.filter(rx => rx.patientId === dinda.id);
+
+  if (myRxList.length === 0) {
+    container.innerHTML = '<div class="muted" style="text-align:center;padding:30px;">Belum ada resep obat farmasi untuk Anda saat ini.</div>';
+    return;
+  }
+
+  container.innerHTML = myRxList.map(rx => `
+    <div style="border:1.5px solid ${rx.status === 'Siap Diambil di Loket Farmasi' ? 'var(--green-border)' : 'var(--line)'};border-radius:8px;padding:20px;margin-bottom:14px;background:#fff;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:12px;">
+        <div>
+          <b style="font-size:17px;color:var(--navy);">${rx.id}</b>
+          <div class="muted" style="font-size:13px;">${rx.clinic} · ${rx.doctor} · ${rx.date}</div>
+        </div>
+        <span class="status ${rx.status === 'Siap Diambil di Loket Farmasi' ? 'green' : rx.status === 'Sudah Diserahkan' ? 'blue' : 'amber'}">
+          ${rx.status}
+        </span>
+      </div>
+
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;padding:12px 14px;border-radius:6px;margin-bottom:14px;">
+        <div style="font-size:12px;font-weight:700;color:var(--text-muted);margin-bottom:4px;">DAFTAR OBAT RESEP:</div>
+        <div style="font-size:15px;font-weight:600;color:#0f172a;line-height:1.4;">${rx.medications}</div>
+        ${rx.notes ? `<div style="font-size:13px;color:#475569;margin-top:4px;"><b>Catatan Apotek:</b> ${rx.notes}</div>` : ''}
+      </div>
+
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+        <div style="font-size:13.5px;color:#1e293b;">
+          📍 Pengambilan: <b>${rx.counter}</b>
+        </div>
+        ${rx.status === 'Siap Diambil di Loket Farmasi' ? `
+          <button class="btn success sm" onclick="confirmPatientRxPickup('${rx.id}')">
+            ✓ Saya Sudah Mengambil Obat Ini
+          </button>
+        ` : rx.status === 'Sudah Diserahkan' ? `
+          <span style="font-size:13px;color:var(--green);font-weight:700;">✓ Obat telah diserahkan</span>
+        ` : `
+          <span style="font-size:13px;color:var(--amber);font-weight:700;">⏳ Sedang disiapkan apoteker</span>
+        `}
+      </div>
+    </div>
+  `).join('');
+}
+
+function confirmPatientRxPickup(rxId) {
+  const rx = state.prescriptions.find(x => x.id === rxId);
+  if (rx) {
+    rx.status = 'Sudah Diserahkan';
+    saveState();
+    logActivity(`Pasien mengonfirmasi penerimaan obat ${rxId}.`);
+    showToast('Terima kasih! Resep obat telah dikonfirmasi diambil.');
+    refreshAllViews();
+  }
+}
+
+// RENDER PATIENT HISTORY
+function renderPatientHistory() {
+  const tbody = document.getElementById('patHistoryTableBody');
+  const dinda = state.patients.find(p => p.id === 'P001') || state.patients[0];
+
+  tbody.innerHTML = `
+    <tr>
+      <td><b>${dinda.formId}</b></td>
+      <td>${dinda.date}</td>
+      <td>${dinda.service}</td>
+      <td>${dinda.finance}</td>
+      <td>
+        <span class="status ${dinda.status === 'Selesai di Faskes Ini' ? 'green' : dinda.status === 'Dirujuk ke Faskes 2' ? 'purple' : 'blue'}">
+          ${dinda.status}
+        </span>
+      </td>
+      <td>
+        ${dinda.referral ? `
+          <button class="btn purple sm" onclick="openReferralModalByPatId('${dinda.id}')">📄 Surat Rujukan</button>
+        ` : `
+          <button class="btn sm" onclick="openPatientModalById('${dinda.id}')">Lihat Formulir</button>
+        `}
+      </td>
+    </tr>
+    <tr>
+      <td><b>FF-0130</b></td>
+      <td>2 Okt 2026</td>
+      <td>Poli Umum</td>
+      <td>BPJS Kesehatan</td>
+      <td><span class="status green">Selesai di Faskes Ini</span></td>
+      <td><button class="btn sm" onclick="showToast('Formulir arsip kunjungan lampau')">Lihat Arsip</button></td>
+    </tr>
+  `;
+}
+
+// RENDER FACILITY DASHBOARD
+function renderFacilityDashboard() {
+  document.getElementById('facMetricRegistered').textContent = state.patients.length;
+  document.getElementById('facMetricReview').textContent = state.patients.filter(p => p.status === 'Perlu Verifikasi').length;
+  document.getElementById('facMetricWaiting').textContent = state.patients.filter(p => p.status === 'Menunggu' || p.status === 'Dipanggil').length;
+  document.getElementById('facMetricDone').textContent = state.patients.filter(p => p.status === 'Selesai di Faskes Ini' || p.status === 'Dirujuk ke Faskes 2').length;
+  document.getElementById('dashRunningQueue').textContent = state.runningQueue;
+}
+
+// RENDER FACILITY REVIEW TABLE
+function renderFacilityReview() {
+  const tbody = document.getElementById('facReviewTableBody');
+  const reviewPatients = state.patients.filter(p => p.status === 'Perlu Verifikasi');
+
+  if (reviewPatients.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text-muted);">Tidak ada berkas yang menunggu verifikasi saat ini.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = reviewPatients.map(p => `
+    <tr>
+      <td><b>${p.formId}</b></td>
+      <td><button class="btn sm" style="font-weight:700;border:0;color:var(--blue);padding:0;" onclick="openPatientModalById('${p.id}')">${p.name}</button></td>
+      <td>${p.source}</td>
+      <td>${p.service}</td>
+      <td><span class="status amber">KTP & BPJS Perlu Cek</span></td>
+      <td>
+        <button class="btn primary sm" onclick="verifyPatient('${p.id}')">✓ Verifikasi & Masukkan Antrean</button>
+        <button class="btn sm" onclick="openPatientModalById('${p.id}')">Lihat Berkas</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function verifyPatient(id) {
+  const p = state.patients.find(x => x.id === id);
+  if (p) {
+    p.status = 'Menunggu';
+    saveState();
+    logActivity(`Petugas memverifikasi berkas ${p.name} (${p.formId}) dan menerbitkan antrean ${p.queueNo}.`);
+    showToast(`Pendaftaran ${p.name} terverifikasi! Masuk antrean.`);
+    refreshAllViews();
+  }
+}
+
+// RENDER FACILITY QUEUE TABLE
+function renderFacilityQueue() {
+  document.getElementById('facRunningQueue').textContent = state.runningQueue;
+  const tbody = document.getElementById('facQueueTableBody');
+
+  tbody.innerHTML = state.patients.map(p => {
+    const isCompleted = p.status === 'Selesai di Faskes Ini' || p.status === 'Dirujuk ke Faskes 2';
+    const isRunning = p.queueNo === state.runningQueue;
+
+    return `
+      <tr style="${isRunning ? 'background:#f0f9ff;' : ''}">
+        <td><b style="font-size:16px;color:var(--navy);">${p.queueNo}</b></td>
+        <td>
+          <button class="btn sm" style="font-weight:700;border:0;color:var(--blue);padding:0;text-align:left;" onclick="openPatientModalById('${p.id}')">
+            ${p.name}
+          </button>
+          <div class="muted" style="font-size:12px;">${p.phone}</div>
+        </td>
+        <td>${p.source}</td>
+        <td>${p.service}</td>
+        <td>
+          <span class="status ${p.status === 'Selesai di Faskes Ini' ? 'green' : p.status === 'Dirujuk ke Faskes 2' ? 'purple' : p.status === 'Dalam Pelayanan' ? 'amber' : 'blue'}">
+            ${p.status}
+          </span>
+        </td>
+        <td style="text-align:right;">
+          <div style="display:inline-flex;gap:6px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">
+            ${!isCompleted ? `
+              <button class="btn primary sm" onclick="callQueueDirect('${p.queueNo}')">📢 Panggil</button>
+              <button class="btn success sm" onclick="openCompleteVisitModal('${p.id}')">✓ Selesaikan Kunjungan</button>
+            ` : `
+              ${p.referral ? `
+                <button class="btn purple sm" onclick="openReferralModalByPatId('${p.id}')">📄 Surat Rujukan</button>
+              ` : `
+                <span style="font-size:13px;color:var(--green);font-weight:700;">Selesai di Faskes</span>
+              `}
+            `}
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+function callQueueDirect(qNo) {
+  state.runningQueue = qNo;
+  const p = state.patients.find(x => x.queueNo === qNo);
+  if (p && p.status === 'Menunggu') {
+    p.status = 'Dalam Pelayanan';
+  }
+  saveState();
+  playChime();
+  logActivity(`Nomor antrean ${qNo} dipanggil.`);
+  showToast(`Nomor antrean ${qNo} sedang dipanggil!`);
+  refreshAllViews();
+}
+
+// NEXT QUEUE BUTTON
+document.getElementById('btnFacNextQueue').onclick = () => {
+  const cur = parseInt(state.runningQueue.replace(/\D/g, '')) || 0;
+  const next = cur + 1;
+  const nextCode = 'A-' + String(next).padStart(3, '0');
+  state.runningQueue = nextCode;
+
+  // Set any matching patient to Dalam Pelayanan
+  const matched = state.patients.find(p => p.queueNo === nextCode);
+  if (matched && matched.status === 'Menunggu') {
+    matched.status = 'Dalam Pelayanan';
+  }
+
+  saveState();
+  playChime();
+  logActivity(`Nomor antrean dimajukan ke ${nextCode}.`);
+  showToast(`Memanggil antrean berikutnya: ${nextCode}`);
+  refreshAllViews();
+};
+
+document.getElementById('btnPlayChime').onclick = () => {
+  playChime();
+  showToast('Lonceng panggilan loket berbunyi.');
+};
+
+// RENDER FACILITY PRESCRIPTIONS TABLE
+function renderFacilityPrescriptions() {
+  const tbody = document.getElementById('facRxTableBody');
+  tbody.innerHTML = state.prescriptions.map(rx => `
+    <tr>
+      <td><b>${rx.id}</b><div class="muted" style="font-size:12px;">${rx.date}</div></td>
+      <td><b>${rx.patientName}</b><div class="muted" style="font-size:12px;">${rx.patientId}</div></td>
+      <td>${rx.clinic}<div class="muted" style="font-size:12px;">${rx.doctor}</div></td>
+      <td style="max-width:280px;line-height:1.4;">${rx.medications}</td>
+      <td>
+        <span class="status ${rx.status === 'Siap Diambil di Loket Farmasi' ? 'green' : rx.status === 'Sudah Diserahkan' ? 'blue' : 'amber'}">
+          ${rx.status}
+        </span>
+      </td>
+      <td style="text-align:right;">
+        <div style="display:inline-flex;gap:6px;justify-content:flex-end;">
+          ${rx.status === 'Sedang Diracik' ? `
+            <button class="btn success sm" onclick="updateRxStatus('${rx.id}', 'Siap Diambil di Loket Farmasi')">
+              ✓ Siap Diambil di Loket
+            </button>
+          ` : rx.status === 'Siap Diambil di Loket Farmasi' ? `
+            <button class="btn primary sm" onclick="updateRxStatus('${rx.id}', 'Sudah Diserahkan')">
+              Serahkan ke Pasien
+            </button>
+          ` : `
+            <span style="font-size:13px;color:var(--text-muted);">Selesai</span>
+          `}
+        </div>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function updateRxStatus(rxId, newStatus) {
+  const rx = state.prescriptions.find(x => x.id === rxId);
+  if (rx) {
+    rx.status = newStatus;
+    saveState();
+    logActivity(`Status resep ${rxId} diubah menjadi "${newStatus}".`);
+    showToast(`Status resep ${rxId} diperbarui: ${newStatus}`);
+    refreshAllViews();
+  }
+}
+
+// RENDER FACILITY PATIENTS TABLE
+function renderFacilityPatients() {
+  const tbody = document.getElementById('facPatientsTableBody');
+  const q = (document.getElementById('inputPatientSearch')?.value || '').toLowerCase();
+  const filtered = state.patients.filter(p => 
+    p.name.toLowerCase().includes(q) ||
+    p.nik.toLowerCase().includes(q) ||
+    p.id.toLowerCase().includes(q) ||
+    p.service.toLowerCase().includes(q)
+  );
+
+  document.getElementById('patientSearchCount').textContent = `${filtered.length} pasien ditemukan`;
+
+  tbody.innerHTML = filtered.map(p => `
+    <tr>
+      <td><b>${p.id}</b></td>
+      <td><b>${p.name}</b></td>
+      <td>${p.nik}</td>
+      <td>${p.phone}</td>
+      <td>${p.service}</td>
+      <td><span class="status ${p.status.includes('Selesai') ? 'green' : p.status.includes('Rujuk') ? 'purple' : 'blue'}">${p.status}</span></td>
+      <td><button class="btn sm" onclick="openPatientModalById('${p.id}')">Lihat Detail</button></td>
+    </tr>
+  `).join('');
+}
+
+document.getElementById('inputPatientSearch').oninput = renderFacilityPatients;
+
+// RENDER SYSTEM ADMIN DASHBOARD
+function renderSystemDashboard() {
+  document.getElementById('sysMetricQueue').textContent = state.runningQueue;
+  document.getElementById('sysDisplayQueue').textContent = state.runningQueue;
+  document.getElementById('inputAdminQueue').value = state.runningQueue;
+  document.getElementById('sysMetricFaskes2').textContent = state.hospitalPartners.length;
+
+  const logContainer = document.getElementById('sysActivityLog');
+  logContainer.innerHTML = state.activityLogs.slice(0, 6).map(l => `
+    <div class="event">
+      <b>${l.text}</b>
+      <div class="muted" style="font-size:12px;">${l.time}</div>
+    </div>
+  `).join('');
+}
+
+// RENDER SYSTEM FACILITIES
+function renderSystemFacilities() {
+  const tbody = document.getElementById('sysFaskes2TableBody');
+  tbody.innerHTML = state.hospitalPartners.map(h => `
+    <tr>
+      <td><b>${h.name}</b></td>
+      <td><span class="status blue">${h.type}</span></td>
+      <td>${h.clinics}</td>
+      <td><span class="status green">● ${h.status}</span></td>
+      <td><button class="btn sm btnDemo">Konfigurasi</button></td>
+    </tr>
+  `).join('');
+}
+
+// 6. ACTIONS: ADMIN QUEUE CONTROLS
+document.getElementById('btnAdminSetQueue').onclick = () => {
+  const val = document.getElementById('inputAdminQueue').value.trim();
+  if (val) {
+    state.runningQueue = val;
+    saveState();
+    logActivity(`Admin sistem mengubah nomor antrean berjalan menjadi ${val}.`);
+    showToast(`Nomor antrean berjalan diubah menjadi ${val}`);
+    refreshAllViews();
+  }
+};
+
+document.getElementById('btnAdminResetQueue').onclick = () => {
+  if (confirm('Yakin ingin mereset nomor antrean hari ini ke A-000?')) {
+    state.runningQueue = 'A-000';
+    saveState();
+    logActivity('Admin sistem melakukan reset antrean harian ke A-000.');
+    showToast('Nomor antrean berhasil direset ke A-000.');
+    refreshAllViews();
+  }
+};
+
+// 7. ACTIONS: PATIENT REGISTRATION FORM
+document.getElementById('formPatientRegister').onsubmit = (e) => {
+  e.preventDefault();
+  const name = document.getElementById('formRegName').value.trim();
+  const nik = document.getElementById('formRegNik').value.trim();
+  const phone = document.getElementById('formRegPhone').value.trim();
+  const dob = document.getElementById('formRegDob').value;
+  const service = document.getElementById('formRegService').value;
+  const finance = document.getElementById('formRegFinance').value;
+  const notes = document.getElementById('formRegNotes').value.trim();
+
+  // Generate queue number
+  const nextQNum = state.patients.length + 1;
+  const newQueueNo = 'A-' + String(nextQNum).padStart(3, '0');
+  const newFormId = 'FF-' + String(150 + nextQNum);
+  const newId = 'P' + String(nextQNum).padStart(3, '0');
+
+  const newPatient = {
+    id: newId,
+    formId: newFormId,
+    name: name,
+    nik: nik,
+    phone: phone,
+    dob: dob,
+    service: service,
+    finance: finance,
+    queueNo: newQueueNo,
+    status: 'Menunggu',
+    source: 'Online (Google)',
+    date: '16 Okt 2026',
+    notes: notes || 'Pendaftaran online mandiri',
+    referral: null
+  };
+
+  // If registering for Dinda, update P001 queue
+  if (name.toLowerCase().includes('dinda')) {
+    const p1 = state.patients.find(x => x.id === 'P001');
+    if (p1) {
+      p1.queueNo = newQueueNo;
+      p1.status = 'Menunggu';
+      p1.service = service;
+      p1.notes = notes;
+    }
+  } else {
+    state.patients.push(newPatient);
+  }
+
+  saveState();
+  logActivity(`Pendaftaran baru online: ${name} (${service}) nomor antrean ${newQueueNo}.`);
+  showToast(`Pendaftaran berhasil! Nomor antrean Anda: ${newQueueNo}`);
+  showPage('p-home');
+};
+
+// QUICK PROFILE PICKER
+const profileData = {
+  dinda: { name: 'Dinda Prameswari', nik: '3173015205981182', phone: '0812-0000-1182', dob: '1998-05-12' },
+  budi: { name: 'Budi Santoso', nik: '3173020402682041', phone: '0812-0000-2041', dob: '1968-02-04' }
+};
+
+document.querySelectorAll('.profile-choice').forEach(choice => {
+  choice.onclick = () => {
+    document.querySelectorAll('.profile-choice').forEach(c => c.classList.remove('selected'));
+    choice.classList.add('selected');
+    const p = profileData[choice.dataset.profile];
+    if (p) {
+      document.getElementById('formRegName').value = p.name;
+      document.getElementById('formRegNik').value = p.nik;
+      document.getElementById('formRegPhone').value = p.phone;
+      document.getElementById('formRegDob').value = p.dob;
+      showToast(`Data profil ${p.name} dimuat.`);
+    }
+  };
+});
+
+// 8. ACTIONS: WALKIN REGISTRATION FORM
+document.getElementById('formWalkin').onsubmit = (e) => {
+  e.preventDefault();
+  const name = document.getElementById('walkinName').value.trim();
+  const nik = document.getElementById('walkinNik').value.trim();
+  const phone = document.getElementById('walkinPhone').value.trim();
+  const service = document.getElementById('walkinService').value;
+  const finance = document.getElementById('walkinFinance').value;
+
+  const nextQNum = state.patients.length + 1;
+  const newQueueNo = 'A-' + String(nextQNum).padStart(3, '0');
+  const newFormId = 'FF-' + String(150 + nextQNum);
+  const newId = 'P' + String(nextQNum).padStart(3, '0');
+
+  state.patients.push({
+    id: newId,
+    formId: newFormId,
+    name: name,
+    nik: nik,
+    phone: phone,
+    dob: '1990-01-01',
+    service: service,
+    finance: finance,
+    queueNo: newQueueNo,
+    status: 'Menunggu',
+    source: 'Walk-in',
+    date: '16 Okt 2026',
+    notes: 'Pendaftaran langsung meja admisi',
+    referral: null
+  });
+
+  saveState();
+  logActivity(`Pendaftaran walk-in: ${name} (${newQueueNo}).`);
+  showToast(`Pasien walk-in ${name} terdaftar! Nomor antrean: ${newQueueNo}`);
+  document.getElementById('formWalkin').reset();
+  showPage('f-queue');
+};
+
+// 9. COMPLETE VISIT & REFERRAL MODAL LOGIC
+const modalComplete = document.getElementById('modalCompleteVisit');
+const referralFieldsBox = document.getElementById('referralFieldsBox');
+const formOutcomeFinish = document.getElementById('labelOutcomeFinish');
+const formOutcomeRefer = document.getElementById('labelOutcomeRefer');
+
+document.querySelectorAll('input[name="visitOutcome"]').forEach(radio => {
+  radio.onchange = () => {
+    referralFieldsBox.style.display = radio.value === 'refer' ? 'block' : 'none';
+  };
+});
+
+function openCompleteVisitModal(patientId) {
+  const p = state.patients.find(x => x.id === patientId);
+  if (!p) return;
+
+  document.getElementById('completePatientId').value = p.id;
+  document.getElementById('completePatientName').value = p.name;
+  document.getElementById('completeQueueNo').value = p.queueNo;
+  document.getElementById('completeModalSubtitle').textContent = `${p.service} · Pasien: ${p.name} (${p.queueNo})`;
+
+  // Default outcome: finish
+  document.querySelector('input[name="visitOutcome"][value="finish"]').checked = true;
+  referralFieldsBox.style.display = 'none';
+  document.getElementById('completeRxMeds').value = 'Paracetamol 500mg 3x1 tablet sesudah makan';
+  document.getElementById('completeRxNotes').value = 'Diminum bila demam';
+  document.getElementById('completeRefNotes').value = '';
+
+  modalComplete.classList.add('show');
+}
+
+document.getElementById('closeCompleteModal').onclick = () => modalComplete.classList.remove('show');
+document.getElementById('btnCancelCompleteModal').onclick = () => modalComplete.classList.remove('show');
+
+document.getElementById('formCompleteVisitAction').onsubmit = (e) => {
+  e.preventDefault();
+  const patId = document.getElementById('completePatientId').value;
+  const p = state.patients.find(x => x.id === patId);
+  if (!p) return;
+
+  const outcome = document.querySelector('input[name="visitOutcome"]:checked').value;
+  const meds = document.getElementById('completeRxMeds').value.trim();
+  const rxNotes = document.getElementById('completeRxNotes').value.trim();
+
+  // 1. Process prescription if any
+  if (meds) {
+    const newRxId = 'RX-2026-' + String(100 + state.prescriptions.length + 1);
+    state.prescriptions.unshift({
+      id: newRxId,
+      patientId: p.id,
+      patientName: p.name,
+      clinic: p.service,
+      doctor: 'dr. Hendra Wijaya, Sp.PD',
+      medications: meds,
+      counter: 'Loket Farmasi 1',
+      notes: rxNotes,
+      status: 'Siap Diambil di Loket Farmasi',
+      date: '16 Okt 2026'
+    });
+  }
+
+  // 2. Process outcome
+  if (outcome === 'refer') {
+    const targetHosp = document.getElementById('completeRefHospital').value;
+    const targetClinic = document.getElementById('completeRefClinic').value;
+    const refNotes = document.getElementById('completeRefNotes').value.trim() || 'Evaluasi & penanganan spesialis lanjutan.';
+
+    const refId = 'SRJ-2026-' + String(Math.floor(1000 + Math.random() * 9000));
+    p.status = 'Dirujuk ke Faskes 2';
+    p.referral = {
+      id: refId,
+      hospital: targetHosp,
+      clinic: targetClinic,
+      doctor: 'dr. Hendra Wijaya, Sp.PD',
+      originClinic: 'Klinik Pratama SKEM',
+      date: '16 Okt 2026',
+      notes: refNotes
+    };
+    logActivity(`Pasien ${p.name} dirujuk ke ${targetHosp} (${targetClinic}) - No. Rujukan: ${refId}.`);
+    showToast(`Pasien berhasil dirujuk ke ${targetHosp}!`);
+  } else {
+    p.status = 'Selesai di Faskes Ini';
+    logActivity(`Kunjungan pasien ${p.name} diselesaikan tuntas di klinik.`);
+    showToast(`Kunjungan ${p.name} selesai di faskes ini.`);
+  }
+
+  saveState();
+  modalComplete.classList.remove('show');
+  refreshAllViews();
+};
+
+// 10. MODAL SURAT RUJUKAN RESMI
+const modalRefLetter = document.getElementById('modalReferralLetter');
+function openReferralModal(ref, patient) {
+  const content = document.getElementById('referralLetterContent');
+  content.innerHTML = `
+    <div style="border-bottom:2px solid #0f172a;padding-bottom:12px;margin-bottom:16px;text-align:center;">
+      <h3 style="margin:0;font-size:18px;text-transform:uppercase;color:#0f172a;">Klinik Pratama Rawat Jalan SKEM</h3>
+      <div style="font-size:12px;color:var(--text-muted);">Jl. Kesehatan Mahasiswa No. 12, Sleman, D.I. Yogyakarta · Telp: (0274) 555-8888</div>
+      <h4 style="margin:10px 0 0;font-size:16px;color:#5b21b6;letter-spacing:0.5px;">SURAT RUJUKAN FASKES TINGKAT 2 (DIGITAL)</h4>
+      <div style="font-weight:700;font-size:14px;color:#1e293b;">Nomor Rujukan: <span style="background:#f3e8ff;padding:2px 8px;border-radius:4px;border:1px solid #ddd6fe;">${ref.id}</span></div>
+    </div>
+
+    <table style="width:100%;font-size:13.5px;line-height:1.7;margin-bottom:16px;">
+      <tr><td style="width:170px;color:var(--text-muted);">Nama Pasien</td><td>: <b>${patient.name}</b></td></tr>
+      <tr><td style="color:var(--text-muted);">NIK Pasien</td><td>: ${patient.nik}</td></tr>
+      <tr><td style="color:var(--text-muted);">Penjamin / Pembiayaan</td><td>: ${patient.finance}</td></tr>
+      <tr><td style="color:var(--text-muted);">Faskes Perujuk (Tingkat 1)</td><td>: ${ref.originClinic}</td></tr>
+      <tr><td style="color:var(--text-muted);">Dokter Perujuk</td><td>: ${ref.doctor}</td></tr>
+      <tr><td style="color:var(--text-muted);font-weight:700;">Rumah Sakit Tujuan (Faskes 2)</td><td>: <b style="color:#5b21b6;font-size:14px;">${ref.hospital}</b></td></tr>
+      <tr><td style="color:var(--text-muted);font-weight:700;">Poli Spesialis Rujukan</td><td>: <b style="color:#5b21b6;font-size:14px;">${ref.clinic}</b></td></tr>
+      <tr><td style="color:var(--text-muted);">Tanggal Rujukan</td><td>: ${ref.date}</td></tr>
+      <tr><td style="color:var(--text-muted);vertical-align:top;">Indikasi Medis & Catatan</td><td>: ${ref.notes}</td></tr>
+    </table>
+
+    <div style="background:#faf5ff;border:1px dashed #8b5cf6;padding:12px;border-radius:6px;display:flex;justify-content:space-between;align-items:center;">
+      <div>
+        <b style="color:#5b21b6;font-size:13px;">✓ Terverifikasi Digital FaskesFlow</b>
+        <div style="font-size:11.5px;color:#6b21a8;">Dokumen sah integrasi administrasi rujukan antar-fasilitas kesehatan.</div>
+      </div>
+      <div style="font-family:monospace;background:#fff;border:1px solid #c4b5fd;padding:4px 8px;font-size:11px;font-weight:700;color:#5b21b6;">
+        QR-VALIDATED
+      </div>
+    </div>
+  `;
+  modalRefLetter.classList.add('show');
+}
+
+function openReferralModalByPatId(patId) {
+  const p = state.patients.find(x => x.id === patId);
+  if (p && p.referral) {
+    openReferralModal(p.referral, p);
+  } else {
+    showToast('Pasien ini belum memiliki surat rujukan Faskes 2.');
+  }
+}
+
+document.getElementById('closeReferralModal').onclick = () => modalRefLetter.classList.remove('show');
+document.getElementById('btnCloseRefLetterBtn').onclick = () => modalRefLetter.classList.remove('show');
+document.getElementById('btnPrintReferral').onclick = () => window.print();
+
+// 11. MODAL DETAIL PASIEN & CETAK PDF FORMULIR
+const modalPatient = document.getElementById('modalPatientDetail');
+function openPatientModalById(patId) {
+  const p = state.patients.find(x => x.id === patId);
+  if (!p) return;
+
+  const body = document.getElementById('patientModalBody');
+  body.innerHTML = `
+    <div style="border-bottom:1px solid #e2e8f0;padding-bottom:12px;margin-bottom:14px;">
+      <h3 style="margin:0 0 4px;font-size:18px;">${p.name}</h3>
+      <div class="muted">ID Pasien: ${p.id} · No. Formulir: ${p.formId}</div>
+    </div>
+    <table style="width:100%;font-size:14px;line-height:1.8;">
+      <tr><td style="width:140px;color:var(--text-muted);">NIK</td><td>: <b>${p.nik}</b></td></tr>
+      <tr><td style="color:var(--text-muted);">Nomor Telepon</td><td>: ${p.phone}</td></tr>
+      <tr><td style="color:var(--text-muted);">Layanan / Poli</td><td>: ${p.service}</td></tr>
+      <tr><td style="color:var(--text-muted);">Pembiayaan</td><td>: ${p.finance}</td></tr>
+      <tr><td style="color:var(--text-muted);">Nomor Antrean</td><td>: <b>${p.queueNo}</b></td></tr>
+      <tr><td style="color:var(--text-muted);">Status</td><td>: <span class="status blue">${p.status}</span></td></tr>
+      <tr><td style="color:var(--text-muted);">Sumber Pendaftaran</td><td>: ${p.source}</td></tr>
+      <tr><td style="color:var(--text-muted);">Tanggal</td><td>: ${p.date}</td></tr>
+      <tr><td style="color:var(--text-muted);vertical-align:top;">Catatan / Keluhan</td><td>: ${p.notes || '-'}</td></tr>
+    </table>
+  `;
+  modalPatient.classList.add('show');
+}
+
+document.getElementById('closePatientModal').onclick = () => modalPatient.classList.remove('show');
+document.getElementById('btnClosePatientModalBtn').onclick = () => modalPatient.classList.remove('show');
+document.getElementById('btnPrintFormPdf').onclick = () => window.print();
+
+// 12. MODAL INPUT RESEP BARU
+const modalNewRx = document.getElementById('modalNewRx');
+document.getElementById('btnOpenNewRxModal').onclick = () => {
+  const sel = document.getElementById('newRxPatientSelect');
+  sel.innerHTML = state.patients.map(p => `<option value="${p.id}">${p.name} (${p.queueNo} - ${p.service})</option>`).join('');
+  modalNewRx.classList.add('show');
+};
+
+document.getElementById('closeNewRxModal').onclick = () => modalNewRx.classList.remove('show');
+document.getElementById('btnCancelNewRx').onclick = () => modalNewRx.classList.remove('show');
+
+document.getElementById('formNewRxAction').onsubmit = (e) => {
+  e.preventDefault();
+  const patId = document.getElementById('newRxPatientSelect').value;
+  const p = state.patients.find(x => x.id === patId);
+  if (!p) return;
+
+  const doc = document.getElementById('newRxDoctor').value.trim();
+  const meds = document.getElementById('newRxMeds').value.trim();
+  const counter = document.getElementById('newRxCounter').value;
+  const notes = document.getElementById('newRxNotes').value.trim();
+
+  const newId = 'RX-2026-' + String(100 + state.prescriptions.length + 1);
+  state.prescriptions.unshift({
+    id: newId,
+    patientId: p.id,
+    patientName: p.name,
+    clinic: p.service,
+    doctor: doc,
+    medications: meds,
+    counter: counter,
+    notes: notes,
+    status: 'Siap Diambil di Loket Farmasi',
+    date: '16 Okt 2026'
+  });
+
+  saveState();
+  logActivity(`Petugas farmasi menginput resep ${newId} untuk ${p.name}.`);
+  showToast(`Resep ${newId} berhasil dikirim ke loket farmasi!`);
+  modalNewRx.classList.remove('show');
+  refreshAllViews();
+};
+
+// 13. CSV EXPORT
+document.getElementById('btnExportCsv').onclick = () => {
+  const rows = [
+    ['ID Pasien', 'Nama', 'NIK', 'Telepon', 'Layanan', 'Pembiayaan', 'Antrean', 'Status', 'Tanggal'],
+    ...state.patients.map(p => [p.id, p.name, p.nik, p.phone, p.service, p.finance, p.queueNo, p.status, p.date])
+  ];
+  const csvContent = '\ufeff' + rows.map(r => r.map(x => `"${String(x).replaceAll('"', '""')}"`).join(',')).join('\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `laporan-pasien-faskesflow-${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('Laporan pasien (CSV) berhasil diunduh.');
+};
+
+// 14. QUICK RESET DATA BUTTON
+document.getElementById('btnQuickResetData').onclick = () => {
+  if (confirm('Kembalikan seluruh data prototype ke pengaturan awal demo?')) {
+    localStorage.removeItem('faskesflow_proto_state');
+    state = JSON.parse(JSON.stringify(DEFAULT_STATE));
+    saveState();
+    showToast('Data prototype berhasil direset ke kondisi awal.');
+    refreshAllViews();
+  }
+};
+
+// DEMO BUTTON CLICKS
+document.querySelectorAll('.btnDemo').forEach(b => {
+  b.onclick = () => showToast('Aksi konfigurasi disimulasikan pada prototype.');
+});
+
+// INITIAL BOOTSTRAP
+setRole('patient');
+refreshAllViews();
+</script>
+
+</body>
+</html>
+
+</body>
+</html>
+

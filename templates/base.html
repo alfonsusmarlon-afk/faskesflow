@@ -834,22 +834,158 @@ h4, h5, h6 {
   }
 }
 
+@page {
+  size: A4 portrait;
+  margin: 10mm 15mm;
+}
+
 @media print {
-  .side, .top, .notice, .mobile, .head .btn, .toolbar, .pager, .toast, .nav-toggle, .sidebar-backdrop {
+  html, body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+    color: #000 !important;
+    font-family: Arial, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Completely hide the interactive shell, sidebar, navbar, modals, and backdrops */
+  .shell, .side, .top, .notice, .mobile, .head .btn, .toolbar, .pager, .toast, .nav-toggle, .sidebar-backdrop, .modal {
+    display: none !important;
+    height: 0 !important;
+    min-height: 0 !important;
+    max-height: 0 !important;
+    overflow: hidden !important;
+    visibility: hidden !important;
+    position: absolute !important;
+    left: -9999px !important;
+  }
+
+  .page {
     display: none !important;
   }
-  .shell { display: block; }
-  .content { padding: 0; max-width: 100%; }
-  .card { border: 0; }
-  h1, h2, h3, h4, h5, h6, .head h1, .section-title, .modal-head h2, .label, .top-title b {
-    background: transparent !important;
-    border: none !important;
+
+  /* Only display the dedicated print sheet starting on Page 1 */
+  #print-sheet.printing {
+    display: block !important;
+    visibility: visible !important;
+    position: static !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
     padding: 0 !important;
-    color: #000 !important;
-    border-radius: 0 !important;
+    page-break-before: avoid !important;
+    page-break-after: avoid !important;
   }
-  .page { display: none !important; }
-  .page.printing { display: block !important; }
+
+  .print-document {
+    color: #000;
+    line-height: 1.35;
+    font-size: 10.5pt;
+  }
+
+  .print-kop {
+    text-align: center;
+    border-bottom: 3px double #111;
+    padding-bottom: 8px;
+    margin-bottom: 12px;
+  }
+
+  .print-kop h2 {
+    font-size: 17pt !important;
+    font-weight: 800 !important;
+    margin: 0 0 2px 0 !important;
+    color: #0f2c42 !important;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+
+  .print-kop .sub {
+    font-size: 10pt !important;
+    font-weight: 700 !important;
+    color: #333 !important;
+    margin: 0 0 2px 0 !important;
+    text-transform: uppercase;
+  }
+
+  .print-kop .addr {
+    font-size: 8.5pt !important;
+    color: #444 !important;
+    margin: 0 !important;
+  }
+
+  .print-title {
+    text-align: center;
+    margin: 10px 0 14px 0;
+  }
+
+  .print-title h3 {
+    font-size: 13pt !important;
+    font-weight: 700 !important;
+    text-decoration: underline;
+    margin: 0 0 3px 0 !important;
+    color: #000 !important;
+  }
+
+  .print-title .code {
+    font-size: 10pt !important;
+    font-weight: 600 !important;
+    color: #333 !important;
+  }
+
+  .print-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 12px;
+    font-size: 9.5pt;
+  }
+
+  .print-table th, .print-table td {
+    border: 1px solid #777;
+    padding: 5px 8px;
+    vertical-align: top;
+  }
+
+  .print-table th {
+    background-color: #f1f5f9 !important;
+    font-weight: 700;
+    color: #1e293b;
+    text-align: left;
+  }
+
+  .print-box {
+    border: 1px solid #94a3b8;
+    background-color: #f8fafc !important;
+    padding: 8px 12px;
+    border-radius: 4px;
+    margin-bottom: 14px;
+    font-size: 8.5pt;
+    line-height: 1.4;
+  }
+
+  .print-signatures {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 20px;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  .print-sig-col {
+    width: 44%;
+    text-align: center;
+    font-size: 9.5pt;
+  }
+
+  .print-sig-space {
+    height: 50px;
+  }
+
+  .print-sig-name {
+    font-weight: 700;
+    text-decoration: underline;
+  }
 }
 </style>
 </head>
@@ -904,6 +1040,7 @@ h4, h5, h6 {
         <a href="{{ url_for('system.users') }}" class="{% if active_page == 'users' %}active{% endif %}">Akun & akses</a>
         <a href="{{ url_for('system.services') }}" class="{% if active_page == 'services' %}active{% endif %}">Poli & layanan</a>
         <a href="{{ url_for('system.facilities') }}" class="{% if active_page == 'facilities' %}active{% endif %}">Persyaratan</a>
+        <a href="{{ url_for('system.partners') }}" class="{% if active_page == 'partners' %}active{% endif %}">Mitra faskes</a>
         <a href="{{ url_for('system.logs') }}" class="{% if active_page == 'logs' %}active{% endif %}">Log aktivitas</a>
       {% endif %}
     </nav>
@@ -1012,11 +1149,11 @@ h4, h5, h6 {
     <a href="{{ url_for('system.users') }}" class="{% if active_page == 'users' %}active{% endif %}">
       <span class="mob-icon">👥</span><span>Akun</span>
     </a>
-    <a href="{{ url_for('system.services') }}" class="{% if active_page == 'services' %}active{% endif %}">
-      <span class="mob-icon">🏥</span><span>Layanan</span>
-    </a>
     <a href="{{ url_for('system.facilities') }}" class="{% if active_page == 'facilities' %}active{% endif %}">
       <span class="mob-icon">📋</span><span>Syarat</span>
+    </a>
+    <a href="{{ url_for('system.partners') }}" class="{% if active_page == 'partners' %}active{% endif %}">
+      <span class="mob-icon">🤝</span><span>Mitra</span>
     </a>
     <button type="button" class="mob-btn" id="mobileMenuSystem">
       <span class="mob-icon">☰</span><span>Menu</span>
@@ -1138,17 +1275,12 @@ document.querySelectorAll('.demo').forEach(b=>{
   b.onclick=()=>toast('Aksi disimulasikan pada mockup.');
 });
 
-// Patients Dataset (Frontend-accessible for search, modal, & report download)
-const patients = {{ patients | default([
-  {'id':'P001','name':'Dinda Prameswari','phone':'0812-0000-1182','date':'14 Okt 2026','service':'Poli Umum','finance':'Mandiri','status':'Menunggu','form':'FF-0152'},
-  {'id':'P002','name':'Budi Santoso','phone':'0812-0000-2041','date':'14 Okt 2026','service':'Poli Gigi','finance':'BPJS Demo','status':'Perlu diperiksa','form':'FF-0154'},
-  {'id':'P003','name':'Nadia Putri','phone':'0812-0000-3320','date':'14 Okt 2026','service':'Poli Umum','finance':'Mandiri','status':'Terverifikasi','form':'FF-0155'},
-  {'id':'P004','name':'Raka Putra','phone':'0812-0000-4411','date':'14 Okt 2026','service':'Poli Umum','finance':'Mandiri','status':'Terdaftar','form':'FF-0156'},
-  {'id':'P005','name':'Sari Wulandari','phone':'0812-0000-5521','date':'13 Okt 2026','service':'KIA','finance':'BPJS Demo','status':'Selesai','form':'FF-0149'},
-  {'id':'P006','name':'Andi Wijaya','phone':'0812-0000-6631','date':'13 Okt 2026','service':'Poli Gigi','finance':'Mandiri','status':'Selesai','form':'FF-0147'},
-  {'id':'P007','name':'Maya Lestari','phone':'0812-0000-7741','date':'12 Okt 2026','service':'Poli Umum','finance':'BPJS Demo','status':'Selesai','form':'FF-0141'},
-  {'id':'P008','name':'Fajar Nugraha','phone':'0812-0000-8851','date':'12 Okt 2026','service':'Poli Umum','finance':'Mandiri','status':'Dibatalkan','form':'FF-0139'}
-]) | tojson | safe }};
+// Patients Dataset (Frontend-accessible for staff search, modal, & report download)
+{% if current_role in ['facility', 'system'] %}
+const patients = {{ patients | default([]) | tojson | safe }};
+{% else %}
+const patients = [];
+{% endif %}
 
 // Patient Modal Handlers
 function bindPatientButtons(){
@@ -1174,19 +1306,259 @@ if(closeModal && patientModal){
   patientModal.onclick=e=>{if(e.target===patientModal)patientModal.classList.remove('show')};
 }
 
-// Print PDF Form Simulation
-function printForm(formId){
-  const p=patients.find(x=>x.form===formId)||patients[0];
-  const sheet=document.getElementById('print-sheet');
-  if(!sheet)return;
-  sheet.innerHTML=`<h1>FaskesFlow</h1><h2>Ringkasan Formulir Pendaftaran</h2><p>Dokumen demonstrasi, bukan rekam medis.</p><hr><dl class="detail-grid"><dt>ID formulir</dt><dd>${p.form}</dd><dt>ID pasien</dt><dd>${p.id}</dd><dt>Nama</dt><dd>${p.name}</dd><dt>Telepon</dt><dd>${p.phone}</dd><dt>Tanggal kunjungan</dt><dd>${p.date}</dd><dt>Layanan</dt><dd>${p.service}</dd><dt>Pembiayaan</dt><dd>${p.finance}</dd><dt>Status</dt><dd>${p.status}</dd></dl>`;
+// Print PDF Form - Official Medical Document Format
+function printForm(formId, btnEl){
+  let p = null;
+  if (typeof patients !== 'undefined' && Array.isArray(patients)) {
+    p = patients.find(x => x.form === formId || x.id === formId);
+  }
+
+  // If not in patients (e.g. for patient role or specific history), build from dataset or fallback
+  if (!p && btnEl) {
+    p = {
+      form: btnEl.dataset.form || formId,
+      id: btnEl.dataset.patientId || btnEl.dataset.id || ('P-' + String(formId).replace('FF-', '')),
+      name: btnEl.dataset.patient || btnEl.dataset.name || 'Pasien',
+      phone: btnEl.dataset.phone || '-',
+      date: btnEl.dataset.date || new Date().toISOString().slice(0, 10),
+      service: btnEl.dataset.service || 'Poli Umum',
+      hospital: btnEl.dataset.hospital || 'Klinik SKEM',
+      finance: btnEl.dataset.finance || 'BPJS / Mandiri',
+      status: btnEl.dataset.status || 'Terverifikasi',
+      document_name: btnEl.dataset.docName || '',
+      ref_id: btnEl.dataset.ref || '',
+      target_faskes: btnEl.dataset.target || ''
+    };
+  }
+
+  if (!p) {
+    p = {
+      form: formId,
+      id: 'P-' + String(formId).replace('FF-', ''),
+      name: 'Pasien Terdaftar',
+      phone: '-',
+      date: new Date().toISOString().slice(0, 10),
+      service: 'Poli Umum',
+      hospital: 'Klinik SKEM',
+      finance: 'Mandiri / BPJS',
+      status: 'Terdaftar'
+    };
+  }
+
+  const sheet = document.getElementById('print-sheet');
+  if (!sheet) return;
+
+  const nowStr = new Date().toLocaleString('id-ID', { dateStyle: 'long', timeStyle: 'short' });
+
+  sheet.innerHTML = `
+    <div class="print-document">
+      <div class="print-kop">
+        <h2>KLINIK SKEM</h2>
+        <div class="sub">FASILITAS KESEHATAN TINGKAT PERTAMA (FKTP)</div>
+        <div class="addr">Jl. Kesehatan Raya No. 42, Gambir, Jakarta Pusat 10110 · Telp: (021) 555-0199 · Email: admin@klinikskem.id</div>
+      </div>
+
+      <div class="print-title">
+        <h3>BUKTI PENDAFTARAN & KARTU KUNJUNGAN PASIEN</h3>
+        <div class="code">Nomor Registrasi: <b>${p.form || formId}</b> &nbsp;|&nbsp; Dicetak: ${nowStr}</div>
+      </div>
+
+      <table class="print-table">
+        <tbody>
+          <tr>
+            <th style="width:28%;">No. Registrasi (Formulir)</th>
+            <td style="width:22%;"><b>${p.form || formId}</b></td>
+            <th style="width:25%;">Tanggal Kunjungan</th>
+            <td style="width:25%;">${p.date || '-'}</td>
+          </tr>
+          <tr>
+            <th>Nomor Rekam Medis (ID)</th>
+            <td><b>${p.id || '-'}</b></td>
+            <th>Poli / Unit Layanan</th>
+            <td><b>${p.service || 'Poli Umum'}</b></td>
+          </tr>
+          <tr>
+            <th>Nama Lengkap Pasien</th>
+            <td colspan="3"><b>${p.name || '-'}</b></td>
+          </tr>
+          <tr>
+            <th>Nomor Telepon / Kontak</th>
+            <td>${p.phone || '-'}</td>
+            <th>Metode Pembiayaan</th>
+            <td>${p.finance || 'Mandiri'}</td>
+          </tr>
+          <tr>
+            <th>Fasilitas Kesehatan</th>
+            <td>${p.hospital || 'Klinik SKEM'}</td>
+            <th>Status Administrasi</th>
+            <td><b>${p.status || 'Terverifikasi'}</b></td>
+          </tr>
+          ${p.document_name ? `
+          <tr>
+            <th>Dokumen Terlampir</th>
+            <td colspan="3">📎 ${p.document_name} (Terverifikasi Sistem)</td>
+          </tr>` : ''}
+          ${p.target_faskes ? `
+          <tr>
+            <th>Rujukan Faskes Lanjutan</th>
+            <td colspan="3">🏥 Dirujuk ke: <b>${p.target_faskes}</b> ${p.ref_id ? `(No. Rujukan: ${p.ref_id})` : ''}</td>
+          </tr>` : ''}
+        </tbody>
+      </table>
+
+      <div class="print-box">
+        <b>PETUNJUK PENTING PASIEN:</b>
+        <ol style="margin:4px 0 0 16px;padding:0;">
+          <li>Tunjukkan lembar cetak bukti registrasi ini kepada petugas loket pendaftaran Klinik SKEM saat tiba.</li>
+          <li>Harap hadir 15 menit sebelum jam operasional poli untuk konfirmasi antrean dan verifikasi berkas fisik (KTP/Kartu BPJS asli).</li>
+          <li>Dokumen ini merupakan bukti pendaftaran elektronik resmi yang sah dari Sistem Layanan FaskesFlow Klinik SKEM.</li>
+        </ol>
+      </div>
+
+      <div class="print-signatures">
+        <div class="print-sig-col">
+          <div>Pasien / Keluarga Pasien,</div>
+          <div class="print-sig-space"></div>
+          <div class="print-sig-name">( ${p.name || 'Pasien'} )</div>
+        </div>
+        <div class="print-sig-col">
+          <div>Petugas Pendaftaran Klinik SKEM,</div>
+          <div class="print-sig-space" style="display:flex;align-items:center;justify-content:center;">
+            <span style="border:1px solid #15803d;color:#15803d;padding:2px 8px;font-size:8pt;border-radius:3px;text-transform:uppercase;font-weight:700;">VALIDASI SISTEM TERVERIFIKASI</span>
+          </div>
+          <div class="print-sig-name">( Petugas Loket & Administrasi )</div>
+        </div>
+      </div>
+    </div>
+  `;
+
   sheet.classList.add('printing');
   window.print();
-  sheet.classList.remove('printing');
+  setTimeout(() => {
+    sheet.classList.remove('printing');
+  }, 1000);
+}
+
+// Print Medical Prescription - Official R/ Layout
+function printPrescription(rx){
+  if (!rx) return;
+  const sheet = document.getElementById('print-sheet');
+  if (!sheet) return;
+
+  const nowStr = new Date().toLocaleString('id-ID', { dateStyle: 'long', timeStyle: 'short' });
+  const meds = Array.isArray(rx.medications) ? rx.medications : [];
+
+  let medsRows = '';
+  if (meds.length > 0) {
+    meds.forEach((m, idx) => {
+      medsRows += `
+        <tr>
+          <td style="text-align:center;">${idx + 1}</td>
+          <td><b>${m.name || '-'}</b></td>
+          <td>${m.dosage || '-'}</td>
+          <td style="text-align:center;">${m.qty || '1'}</td>
+          <td>${m.timing || m.instruction || m.instructions || '-'}</td>
+        </tr>
+      `;
+    });
+  } else {
+    medsRows = `<tr><td colspan="5" style="text-align:center;color:#666;">Tidak ada rincian obat pada resep ini.</td></tr>`;
+  }
+
+  sheet.innerHTML = `
+    <div class="print-document">
+      <div class="print-kop">
+        <h2>KLINIK SKEM</h2>
+        <div class="sub">INSTALASI FARMASI & PELAYANAN RESEP OBAT</div>
+        <div class="addr">Jl. Kesehatan Raya No. 42, Gambir, Jakarta Pusat 10110 · Telp: (021) 555-0199 · Email: farmasi@klinikskem.id</div>
+      </div>
+
+      <div class="print-title">
+        <h3>SALINAN RESEP DOKTER (R/) & LEMBAR PENGAMBILAN OBAT</h3>
+        <div class="code">No. Resep: <b>${rx.id || '-'}</b> &nbsp;|&nbsp; Tanggal: ${rx.date || nowStr}</div>
+      </div>
+
+      <table class="print-table" style="margin-bottom:10px;">
+        <tbody>
+          <tr>
+            <th style="width:25%;">Dokter Pemeriksa</th>
+            <td style="width:30%;"><b>${rx.doctor || 'dr. Maya Sartika, Sp.PD'}</b></td>
+            <th style="width:20%;">Poli / Unit</th>
+            <td style="width:25%;">${rx.clinic || 'Poli Umum'}</td>
+          </tr>
+          <tr>
+            <th>Nama Pasien</th>
+            <td><b>${rx.patient_name || '-'}</b></td>
+            <th>No. Rekam Medis (ID)</th>
+            <td><b>${rx.patient_id || '-'}</b></td>
+          </tr>
+          <tr>
+            <th>Nomor Antrean</th>
+            <td><b style="font-size:11pt;color:#1e3a8a;">${rx.queue_no || '-'}</b></td>
+            <th>Loket Farmasi</th>
+            <td>${rx.counter || 'Loket Farmasi'}</td>
+          </tr>
+          ${rx.notes ? `
+          <tr>
+            <th>Catatan Khusus Dokter</th>
+            <td colspan="3" style="color:#b45309;font-weight:600;">${rx.notes}</td>
+          </tr>` : ''}
+        </tbody>
+      </table>
+
+      <div style="font-weight:700;font-size:11pt;margin:10px 0 6px 0;letter-spacing:0.5px;">R/ RESEP OBAT:</div>
+      <table class="print-table">
+        <thead>
+          <tr>
+            <th style="width:6%;text-align:center;">No</th>
+            <th style="width:36%;">Nama Obat & Sediaan</th>
+            <th style="width:22%;">Dosis / Aturan Pakai</th>
+            <th style="width:10%;text-align:center;">Jumlah</th>
+            <th style="width:26%;">Petunjuk Penggunaan</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${medsRows}
+        </tbody>
+      </table>
+
+      <div class="print-box">
+        <b>PETUNJUK PENGAMBILAN OBAT:</b>
+        <ol style="margin:4px 0 0 16px;padding:0;">
+          <li>Serahkan lembar salinan resep ini ke Loket Farmasi Klinik SKEM untuk verifikasi dan penyerahan obat.</li>
+          <li>Pastikan nama pasien dan aturan pakai obat telah dijelaskan oleh Apoteker / Asisten Apoteker sebelum meninggalkan loket.</li>
+          <li>Simpan obat pada tempat kering, sejuk, dan terlindung dari sinar matahari langsung serta jangkauan anak-anak.</li>
+        </ol>
+      </div>
+
+      <div class="print-signatures">
+        <div class="print-sig-col">
+          <div>Petugas Farmasi / Apoteker,</div>
+          <div class="print-sig-space" style="display:flex;align-items:center;justify-content:center;">
+            <span style="border:1px solid #0284c7;color:#0284c7;padding:2px 8px;font-size:8pt;border-radius:3px;text-transform:uppercase;font-weight:700;">TELAH DISIAPKAN & DIPERIKSA</span>
+          </div>
+          <div class="print-sig-name">( Apt. Farmasi Klinik SKEM )</div>
+        </div>
+        <div class="print-sig-col">
+          <div>Dokter Pemeriksa,</div>
+          <div class="print-sig-space" style="display:flex;align-items:center;justify-content:center;">
+            <span style="font-family:'Times New Roman',serif;font-style:italic;font-size:14pt;color:#333;">Maya Sartika</span>
+          </div>
+          <div class="print-sig-name">( ${rx.doctor || 'dr. Maya Sartika, Sp.PD'} )</div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  sheet.classList.add('printing');
+  window.print();
+  setTimeout(() => {
+    sheet.classList.remove('printing');
+  }, 1000);
 }
 
 document.querySelectorAll('.formPdf').forEach(b=>{
-  b.onclick=()=>printForm(b.dataset.form);
+  b.onclick=()=>printForm(b.dataset.form, b);
 });
 
 // CSV Export Utility

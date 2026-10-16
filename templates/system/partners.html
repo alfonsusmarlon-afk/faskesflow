@@ -1,0 +1,198 @@
+{% extends 'base.html' %}
+
+{% block title %}Mitra Faskes Rujukan - Klinik SKEM{% endblock %}
+
+{% block content %}
+<section class="page active" id="s-partners">
+  <div class="head">
+    <div>
+      <h1>Mitra faskes rujukan</h1>
+      <div class="muted">Daftar rumah sakit rujukan tingkat 2 yang bekerja sama untuk menerima pasien rujukan dari Klinik SKEM.</div>
+    </div>
+    <button class="btn primary" id="btnOpenAddFaskes2" type="button">+ Tambah Faskes 2</button>
+  </div>
+
+  <div class="card table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Kode</th>
+          <th>Nama Faskes 2</th>
+          <th>Tipe Rumah Sakit / Faskes</th>
+          <th>Kota / Wilayah</th>
+          <th>Kontak Telepon</th>
+          <th>Status</th>
+          <th style="text-align:right;">Aksi</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for f in faskes2_partners %}
+        <tr>
+          <td><b>{{ f.id }}</b></td>
+          <td><b style="color:var(--navy);">{{ f.name }}</b></td>
+          <td>{{ f.type }}</td>
+          <td>{{ f.city }}</td>
+          <td>{{ f.phone }}</td>
+          <td><span class="status {{ f.status_class | default('green') }}">{{ f.status }}</span></td>
+          <td style="text-align:right;">
+            <div style="display:inline-flex;gap:6px;justify-content:flex-end;">
+              <button class="btn btn-edit-faskes2" type="button"
+                data-id="{{ f.id }}"
+                data-name="{{ f.name }}"
+                data-type="{{ f.type }}"
+                data-city="{{ f.city }}"
+                data-phone="{{ f.phone }}"
+                data-status="{{ f.status }}">
+                Ubah
+              </button>
+              <form method="POST" action="{{ url_for('system.delete_faskes2', partner_id=f.id) }}" style="display:inline;" onsubmit="return confirm('Apakah Anda yakin ingin menghapus mitra faskes {{ f.name }} ({{ f.id }})?');">
+                <button class="btn danger" type="submit">Hapus</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="7" class="empty">Belum ada mitra Faskes Tingkat 2 yang terdaftar.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- MODAL TAMBAH MITRA FASKES 2 -->
+<div class="modal" id="addFaskes2Modal">
+  <div class="modal-box" style="max-width:540px;">
+    <div class="modal-head">
+      <h2>Tambah Mitra Faskes Tingkat 2</h2>
+      <button class="icon-btn" id="closeAddFaskes2Modal" type="button">×</button>
+    </div>
+    <form method="POST" action="{{ url_for('system.add_faskes2') }}">
+      <div class="grid form">
+        <div class="field wide">
+          <label for="newFaskesName">Nama Fasilitas / Rumah Sakit *</label>
+          <input id="newFaskesName" name="name" required placeholder="Contoh: RSUD Dr. Soetomo">
+        </div>
+
+        <div class="field">
+          <label for="newFaskesType">Tipe Fasilitas / Kelas</label>
+          <input id="newFaskesType" name="type" required placeholder="Contoh: Rumah Sakit Umum Daerah (Tipe A)">
+        </div>
+
+        <div class="field">
+          <label for="newFaskesCity">Kota / Wilayah</label>
+          <input id="newFaskesCity" name="city" required placeholder="Contoh: Surabaya">
+        </div>
+
+        <div class="field">
+          <label for="newFaskesPhone">Nomor Telepon / Hotline</label>
+          <input id="newFaskesPhone" name="phone" placeholder="Contoh: (031) 5501078">
+        </div>
+
+        <div class="field">
+          <label for="newFaskesStatus">Status Kemitraan</label>
+          <select id="newFaskesStatus" name="status">
+            <option value="Aktif">Aktif</option>
+            <option value="Nonaktif">Nonaktif</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="actions" style="margin-top:16px;">
+        <button type="button" class="btn" id="btnCancelAddFaskes2">Batal</button>
+        <button type="submit" class="btn primary" style="font-weight:700;">Simpan Mitra Faskes 2</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- MODAL UBAH MITRA FASKES 2 -->
+<div class="modal" id="editFaskes2Modal">
+  <div class="modal-box" style="max-width:540px;">
+    <div class="modal-head">
+      <h2>Ubah Mitra Faskes Tingkat 2</h2>
+      <button class="icon-btn" id="closeEditFaskes2Modal" type="button">×</button>
+    </div>
+    <form method="POST" id="editFaskes2Form" action="">
+      <div class="grid form">
+        <div class="field wide">
+          <label for="editFaskesName">Nama Fasilitas / Rumah Sakit *</label>
+          <input id="editFaskesName" name="name" required>
+        </div>
+
+        <div class="field">
+          <label for="editFaskesType">Tipe Fasilitas / Kelas</label>
+          <input id="editFaskesType" name="type" required>
+        </div>
+
+        <div class="field">
+          <label for="editFaskesCity">Kota / Wilayah</label>
+          <input id="editFaskesCity" name="city" required>
+        </div>
+
+        <div class="field">
+          <label for="editFaskesPhone">Nomor Telepon / Hotline</label>
+          <input id="editFaskesPhone" name="phone">
+        </div>
+
+        <div class="field">
+          <label for="editFaskesStatus">Status Kemitraan</label>
+          <select id="editFaskesStatus" name="status">
+            <option value="Aktif">Aktif</option>
+            <option value="Nonaktif">Nonaktif</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="actions" style="margin-top:16px;">
+        <button type="button" class="btn" id="btnCancelEditFaskes2">Batal</button>
+        <button type="submit" class="btn primary" style="font-weight:700;">Simpan Perubahan</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Modal Tambah
+const addFaskes2Modal = document.getElementById('addFaskes2Modal');
+const openAddFaskes2 = document.getElementById('btnOpenAddFaskes2');
+const closeAddFaskes2 = document.getElementById('closeAddFaskes2Modal');
+const cancelAddFaskes2 = document.getElementById('btnCancelAddFaskes2');
+
+if(openAddFaskes2 && addFaskes2Modal) openAddFaskes2.onclick = () => addFaskes2Modal.classList.add('show');
+if(closeAddFaskes2 && addFaskes2Modal) closeAddFaskes2.onclick = () => addFaskes2Modal.classList.remove('show');
+if(cancelAddFaskes2 && addFaskes2Modal) cancelAddFaskes2.onclick = () => addFaskes2Modal.classList.remove('show');
+
+// Modal Ubah
+const editFaskes2Modal = document.getElementById('editFaskes2Modal');
+const closeEditFaskes2 = document.getElementById('closeEditFaskes2Modal');
+const cancelEditFaskes2 = document.getElementById('btnCancelEditFaskes2');
+const editFaskes2Form = document.getElementById('editFaskes2Form');
+
+document.querySelectorAll('.btn-edit-faskes2').forEach(b => {
+  b.onclick = () => {
+    const id = b.dataset.id;
+    document.getElementById('editFaskesName').value = b.dataset.name || '';
+    document.getElementById('editFaskesType').value = b.dataset.type || '';
+    document.getElementById('editFaskesCity').value = b.dataset.city || '';
+    document.getElementById('editFaskesPhone').value = b.dataset.phone || '';
+    document.getElementById('editFaskesStatus').value = b.dataset.status || 'Aktif';
+
+    editFaskes2Form.action = `/system/faskes2/edit/${id}`;
+    if(editFaskes2Modal) editFaskes2Modal.classList.add('show');
+  };
+});
+
+if(closeEditFaskes2 && editFaskes2Modal) closeEditFaskes2.onclick = () => editFaskes2Modal.classList.remove('show');
+if(cancelEditFaskes2 && editFaskes2Modal) cancelEditFaskes2.onclick = () => editFaskes2Modal.classList.remove('show');
+
+window.onclick = e => {
+  if(e.target === addFaskes2Modal) addFaskes2Modal.classList.remove('show');
+  if(e.target === editFaskes2Modal) editFaskes2Modal.classList.remove('show');
+};
+</script>
+{% endblock %}
+

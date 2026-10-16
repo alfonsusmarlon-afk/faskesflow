@@ -156,7 +156,7 @@
               </button>
             </form>
             {% endif %}
-            <button type="button" class="btn" onclick="window.print()">Cetak Resep</button>
+            <button type="button" class="btn btn-print-patient-rx" data-rx='{{ rx | tojson | forceescape }}'>🖨️ Cetak Resep</button>
           </div>
         </div>
 
@@ -171,5 +171,25 @@
     {% endif %}
   </div>
 </section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.querySelectorAll('.btn-print-patient-rx').forEach(btn => {
+  btn.onclick = () => {
+    try {
+      const rx = JSON.parse(btn.dataset.rx);
+      if (typeof printPrescription === 'function') {
+        printPrescription(rx);
+      } else {
+        window.print();
+      }
+    } catch(e) {
+      console.error(e);
+      window.print();
+    }
+  };
+});
+</script>
 {% endblock %}
 

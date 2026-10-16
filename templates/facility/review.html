@@ -26,15 +26,37 @@
       <tbody>
         {% for item in review_list %}
         <tr>
-          <td><b>{{ item.id }}</b></td>
+          <td>
+            <b>{{ item.id }}</b>
+            {% if item.document_url %}
+            <div style="margin-top:3px;">
+              <a href="{{ item.document_url }}" target="_blank" style="font-size:11.5px;color:#2563eb;text-decoration:underline;display:inline-flex;align-items:center;gap:3px;" title="{{ item.document_name }}">
+                📎 {{ item.document_type | upper or 'BERKAS' }}
+              </a>
+            </div>
+            {% endif %}
+          </td>
           <td>
             <button class="patient-link viewPatient" data-id="{{ item.patient_id }}" type="button">{{ item.patient_name }}</button>
+            <div style="font-size:11px;color:#64748b;">ID: {{ item.patient_id }}</div>
           </td>
           <td>{{ item.source }}</td>
           <td>{{ item.service }}</td>
-          <td><span class="status {{ item.status_class }}">{{ item.readiness }}</span></td>
           <td>
-            <button class="btn formPdf" data-form="{{ item.id }}" type="button">Unduh PDF</button>
+            <span class="status {{ item.status_class }}">{{ item.readiness }}</span>
+            {% if item.reason %}
+            <div style="font-size:11px;color:#b45309;margin-top:3px;max-width:180px;">{{ item.reason }}</div>
+            {% endif %}
+          </td>
+          <td>
+            <button class="btn formPdf" data-form="{{ item.id }}"
+              data-patient="{{ item.patient_name }}"
+              data-patient-id="{{ item.patient_id }}"
+              data-service="{{ item.service }}"
+              data-hospital="Klinik SKEM"
+              data-status="{{ item.readiness }}"
+              data-doc-name="{{ item.document_name | default('') }}"
+              type="button">Unduh PDF</button>
 
             {% if item.readiness == 'Terverifikasi' %}
               <span class="status green" style="margin-left:4px;">Terverifikasi</span>
@@ -67,9 +89,13 @@
               <button class="btn btn-inspect-review" type="button"
                 data-id="{{ item.id }}"
                 data-patient="{{ item.patient_name }}"
+                data-patient-id="{{ item.patient_id }}"
                 data-service="{{ item.service }}"
                 data-source="{{ item.source }}"
-                data-readiness="{{ item.readiness }}">
+                data-readiness="{{ item.readiness }}"
+                data-doc-url="{{ item.document_url | default('') }}"
+                data-doc-name="{{ item.document_name | default('') }}"
+                data-doc-type="{{ item.document_type | default('') }}">
                 Periksa
               </button>
             {% endif %}
@@ -87,13 +113,13 @@
 
 <!-- MODAL PERIKSA & VERIFIKASI BERKAS -->
 <div class="modal" id="reviewInspectModal">
-  <div class="modal-box">
+  <div class="modal-box" style="max-width:620px;">
     <div class="modal-head">
       <h2>Pemeriksaan Berkas: <span id="inspectFormId"></span></h2>
       <button class="icon-btn" id="closeInspectModal" type="button">×</button>
     </div>
     
-    <div style="background:#f8fafc;padding:12px;border:1px solid #e2e8f0;border-radius:3px;margin-bottom:14px;">
+    <div style="background:#f8fafc;padding:12px;border:1px solid #e2e8f0;border-radius:4px;margin-bottom:14px;">
       <dl class="detail-grid" style="margin:0;">
         <dt>Nama Pasien</dt>
         <dd><b id="inspectPatient"></b></dd>
@@ -104,6 +130,20 @@
         <dt>Status Berkas</dt>
         <dd id="inspectReadiness"></dd>
       </dl>
+    </div>
+
+    <!-- DOKUMEN / BERKAS UNGGAHAN PASIEN -->
+    <div style="background:#fff;border:1px solid #cbd5e1;border-radius:6px;padding:14px;margin-bottom:14px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <span style="font-weight:700;font-size:13.5px;color:#1e293b;display:flex;align-items:center;gap:6px;">
+          📎 Dokumen & Berkas Pendukung Pasien:
+        </span>
+        <span id="inspectDocBadge" class="status blue" style="display:none;font-size:11px;"></span>
+      </div>
+
+      <div id="inspectDocContainer" style="text-align:center;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:4px;padding:12px;min-height:80px;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+        <!-- Populated dynamically via JS -->
+      </div>
     </div>
 
     <form method="POST" id="formRequestFix" action="" style="margin-bottom:14px;background:#fff8eb;border:1px solid #fed7aa;border-radius:4px;padding:12px;">
@@ -134,7 +174,7 @@
 {% block scripts %}
 <script>
 document.querySelectorAll('.formPdf').forEach(b => {
-  b.onclick = () => printForm(b.dataset.form);
+  b.onclick = () => printForm(b.dataset.form, b);
 });
 bindPatientButtons();
 bindReferralButtons();
@@ -154,6 +194,58 @@ document.querySelectorAll('.btn-inspect-review').forEach(b => {
     document.getElementById('inspectService').textContent = b.dataset.service || '';
     document.getElementById('inspectSource').textContent = b.dataset.source || '';
     document.getElementById('inspectReadiness').textContent = b.dataset.readiness || '';
+
+    const docUrl = b.dataset.docUrl;
+    const docName = b.dataset.docName || 'Dokumen Pasien';
+    const docType = (b.dataset.docType || '').toLowerCase();
+    const docBadge = document.getElementById('inspectDocBadge');
+    const docContainer = document.getElementById('inspectDocContainer');
+
+    if (docUrl) {
+      docBadge.textContent = (docType || 'FILE').toUpperCase();
+      docBadge.style.display = 'inline-block';
+
+      if (['png', 'jpg', 'jpeg', 'webp', 'gif'].includes(docType)) {
+        docContainer.innerHTML = `
+          <div style="width:100%;text-align:center;">
+            <a href="${docUrl}" target="_blank" title="Klik untuk membuka ukuran penuh di tab baru">
+              <img src="${docUrl}" alt="${docName}" style="max-height:220px;max-width:100%;border-radius:4px;border:1px solid #cbd5e1;cursor:zoom-in;box-shadow:0 1px 3px rgba(0,0,0,0.08);">
+            </a>
+            <div style="margin-top:8px;display:flex;align-items:center;justify-content:center;gap:10px;">
+              <span style="font-size:12.5px;color:#334155;font-weight:600;">📎 ${docName}</span>
+              <a href="${docUrl}" target="_blank" class="btn" style="padding:4px 10px;font-size:12px;background:#fff;">🔍 Perbesar / Tab Baru</a>
+            </div>
+          </div>
+        `;
+      } else if (docType === 'pdf') {
+        docContainer.innerHTML = `
+          <div style="padding:10px;text-align:center;">
+            <div style="font-size:36px;margin-bottom:6px;">📄</div>
+            <div style="font-weight:600;font-size:13.5px;color:#1e293b;margin-bottom:8px;">${docName}</div>
+            <a href="${docUrl}" target="_blank" class="btn primary" style="display:inline-flex;align-items:center;gap:6px;font-size:13px;padding:6px 14px;">
+              Buka File PDF di Tab Baru ↗
+            </a>
+          </div>
+        `;
+      } else {
+        docContainer.innerHTML = `
+          <div style="padding:10px;text-align:center;">
+            <div style="font-size:36px;margin-bottom:6px;">📁</div>
+            <div style="font-weight:600;font-size:13.5px;color:#1e293b;margin-bottom:8px;">${docName}</div>
+            <a href="${docUrl}" target="_blank" class="btn" download style="display:inline-flex;align-items:center;gap:6px;font-size:13px;padding:6px 14px;">
+              ⬇️ Unduh Berkas Lampiran
+            </a>
+          </div>
+        `;
+      }
+    } else {
+      docBadge.style.display = 'none';
+      docContainer.innerHTML = `
+        <div style="color:#94a3b8;font-size:13px;padding:8px;">
+          ⚠️ Tidak ada berkas/dokumen fisik yang diunggah untuk pendaftaran ini.
+        </div>
+      `;
+    }
 
     formConfirm.action = `/facility/review/confirm/${id}`;
     formFix.action = `/facility/review/request_fix/${id}`;

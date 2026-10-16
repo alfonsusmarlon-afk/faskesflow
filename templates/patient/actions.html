@@ -14,17 +14,35 @@
   <div class="card">
     <div class="list">
       {% for action in required_actions %}
-      <div class="row">
-        <div>
-          <b>{{ action.title }}</b>
-          <span class="muted">{{ action.code }} · {{ action.service }} · {{ action.reason }}</span>
+      <div class="row" style="flex-wrap:wrap;gap:12px;align-items:flex-start;">
+        <div style="flex:1;min-width:260px;">
+          <div style="font-size:15px;font-weight:700;color:#0f172a;">{{ action.title }}</div>
+          <div class="muted" style="margin-top:2px;">
+            <b>{{ action.code }}</b> · {{ action.service }} · 
+            <span style="color:#c2410c;font-weight:600;background:#ffedd5;padding:2px 6px;border-radius:3px;">
+              ⚠️ {{ action.reason }}
+            </span>
+          </div>
+          {% if action.document_url %}
+          <div style="margin-top:8px;font-size:13px;display:flex;align-items:center;gap:6px;">
+            <span class="muted">Berkas terunggah sebelumnya:</span>
+            <a href="{{ action.document_url }}" target="_blank" style="color:#2563eb;text-decoration:underline;font-weight:600;display:inline-flex;align-items:center;gap:4px;">
+              📎 {{ action.document_name | default('Lihat Dokumen') }}
+            </a>
+          </div>
+          {% endif %}
         </div>
-        <button class="btn primary btn-open-upload" type="button"
-          data-code="{{ action.code }}"
-          data-title="{{ action.title }}"
-          data-service="{{ action.service }}">
-          Pilih berkas
-        </button>
+        <div>
+          <button class="btn primary btn-open-upload" type="button"
+            data-code="{{ action.code }}"
+            data-title="{{ action.title }}"
+            data-service="{{ action.service }}"
+            data-reason="{{ action.reason }}"
+            data-doc-url="{{ action.document_url | default('') }}"
+            data-doc-name="{{ action.document_name | default('') }}">
+            Unggah Berkas Perbaikan
+          </button>
+        </div>
       </div>
       {% else %}
       <div class="empty">Tidak ada tindakan perbaikan yang diperlukan saat ini. Seluruh berkas pendaftaran Anda telah lengkap.</div>
@@ -35,7 +53,7 @@
 
 <!-- MODAL UNGGAH BERKAS PERBAIKAN -->
 <div class="modal" id="uploadActionModal">
-  <div class="modal-box">
+  <div class="modal-box" style="max-width:540px;">
     <div class="modal-head">
       <h2 id="modalUploadTitle">Unggah Ulang Dokumen</h2>
       <button class="icon-btn" id="closeUploadModal" type="button">×</button>
@@ -43,25 +61,37 @@
     <form method="POST" action="{{ url_for('patient.upload_action') }}" enctype="multipart/form-data">
       <input type="hidden" id="uploadCode" name="code" value="FF-0148">
       
-      <p class="notice" style="margin-top:0;">
-        Silakan unggah dokumen yang jelas dan terbaca untuk mempercepat verifikasi petugas administrasi.
-      </p>
+      <div id="modalReasonBox" class="notice" style="margin-top:0;background:#fff8eb;border-color:#fed7aa;color:#9a3412;">
+        <b>Catatan Petugas:</b> <span id="modalReasonText">Silakan unggah dokumen yang jelas dan terbaca untuk mempercepat verifikasi petugas administrasi.</span>
+      </div>
+
+      <div id="prevDocNotice" style="display:none;background:#f8fafc;padding:8px 12px;border:1px solid #e2e8f0;border-radius:4px;margin-bottom:12px;font-size:13px;">
+        <span class="muted">Berkas saat ini:</span> <a href="#" id="prevDocLink" target="_blank" style="color:#2563eb;font-weight:600;text-decoration:underline;"></a>
+      </div>
 
       <div class="grid form" style="grid-template-columns:1fr;gap:12px;">
         <div class="field">
-          <label for="uploadFile">Pilih Dokumen / Foto Identitas</label>
-          <input id="uploadFile" name="document_file" type="file" required>
+          <label for="uploadFile">Pilih Dokumen / Foto Identitas Baru (JPG, PNG, PDF)</label>
+          <input id="uploadFile" name="document_file" type="file" accept="image/*,.pdf" required>
+          
+          <!-- Live Preview Box -->
+          <div id="uploadFilePreview" style="display:none;margin-top:10px;padding:10px;background:#f1f5f9;border:1px solid #cbd5e1;border-radius:4px;text-align:center;">
+            <div id="previewImageContainer" style="display:none;">
+              <img id="previewImg" src="" alt="Pratinjau Dokumen" style="max-height:180px;max-width:100%;border-radius:3px;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
+            </div>
+            <div id="previewFileInfo" style="font-size:13px;color:#334155;margin-top:6px;font-weight:600;"></div>
+          </div>
         </div>
 
         <div class="field">
           <label for="uploadNotes">Catatan untuk Petugas (Opsional)</label>
-          <textarea id="uploadNotes" name="notes" rows="2" placeholder="Contoh: Foto ulang KTP dengan pencahayaan jelas."></textarea>
+          <textarea id="uploadNotes" name="notes" rows="2" placeholder="Contoh: Sudah diperbarui dengan foto KTP dan surat rujukan baru."></textarea>
         </div>
       </div>
 
-      <div class="actions">
+      <div class="actions" style="margin-top:16px;">
         <button type="button" class="btn" id="btnCancelUpload">Batal</button>
-        <button type="submit" class="btn primary">Kirim Berkas Perbaikan</button>
+        <button type="submit" class="btn primary" style="font-weight:700;">Kirim Berkas Perbaikan</button>
       </div>
     </form>
   </div>
@@ -73,14 +103,64 @@
 const uploadModal = document.getElementById('uploadActionModal');
 const closeUploadBtn = document.getElementById('closeUploadModal');
 const cancelUploadBtn = document.getElementById('btnCancelUpload');
+const uploadFileInput = document.getElementById('uploadFile');
+const uploadPreview = document.getElementById('uploadFilePreview');
+const previewImgContainer = document.getElementById('previewImageContainer');
+const previewImg = document.getElementById('previewImg');
+const previewFileInfo = document.getElementById('previewFileInfo');
 
 document.querySelectorAll('.btn-open-upload').forEach(b => {
   b.onclick = () => {
     document.getElementById('uploadCode').value = b.dataset.code || 'FF-0148';
     document.getElementById('modalUploadTitle').textContent = b.dataset.title || 'Unggah Ulang Dokumen';
+    
+    if (b.dataset.reason) {
+      document.getElementById('modalReasonText').textContent = b.dataset.reason;
+    }
+    
+    const prevDocNotice = document.getElementById('prevDocNotice');
+    const prevDocLink = document.getElementById('prevDocLink');
+    if (b.dataset.docUrl) {
+      prevDocNotice.style.display = 'block';
+      prevDocLink.href = b.dataset.docUrl;
+      prevDocLink.textContent = b.dataset.docName || 'Lihat Berkas Sebelumnya';
+    } else {
+      prevDocNotice.style.display = 'none';
+    }
+
+    // Reset preview
+    if (uploadFileInput) uploadFileInput.value = '';
+    if (uploadPreview) uploadPreview.style.display = 'none';
+
     if(uploadModal) uploadModal.classList.add('show');
   };
 });
+
+if (uploadFileInput) {
+  uploadFileInput.onchange = function() {
+    const file = this.files[0];
+    if (!file) {
+      uploadPreview.style.display = 'none';
+      return;
+    }
+
+    uploadPreview.style.display = 'block';
+    const sizeKB = Math.round(file.size / 1024);
+    previewFileInfo.textContent = `📄 ${file.name} (${sizeKB} KB)`;
+
+    if (file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        previewImg.src = e.target.result;
+        previewImgContainer.style.display = 'block';
+      };
+      reader.readAsDataURL(file);
+    } else {
+      previewImgContainer.style.display = 'none';
+      previewImg.src = '';
+    }
+  };
+}
 
 if(closeUploadBtn && uploadModal){
   closeUploadBtn.onclick = () => uploadModal.classList.remove('show');

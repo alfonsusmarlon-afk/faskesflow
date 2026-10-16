@@ -50,45 +50,6 @@
         </tr>
         {% endfor %}
       </tbody>
-  </div>
-
-  <!-- TABEL MITRA FASKES RUJUKAN (FASKES TINGKAT 2) -->
-  <div class="head" style="margin-top:32px;">
-    <div>
-      <h2 class="section-title" style="margin:0;">Mitra Faskes Rujukan (Faskes Tingkat 2)</h2>
-      <div class="muted" style="margin-top:4px;">Daftar rumah sakit rujukan tingkat 2 yang bekerja sama untuk menerima pasien rujukan dari Klinik SKEM.</div>
-    </div>
-    <button class="btn primary" id="btnOpenAddFaskes2" type="button">+ Tambah Faskes 2</button>
-  </div>
-
-  <div class="card table-wrap" style="margin-top:10px;">
-    <table class="table">
-      <thead>
-        <tr>
-          <th>Kode</th>
-          <th>Nama Faskes 2</th>
-          <th>Tipe Rumah Sakit / Faskes</th>
-          <th>Kota / Wilayah</th>
-          <th>Kontak Telepon</th>
-          <th>Status</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for f in faskes2_partners | default([
-          {'id': 'FK2-01', 'name': 'RSUD Dr. Soetomo', 'type': 'Rumah Sakit Umum Daerah (Tipe A)', 'city': 'Surabaya', 'phone': '(031) 5501078', 'status': 'Aktif'},
-          {'id': 'FK2-02', 'name': 'RS Pusat Harapan', 'type': 'Rumah Sakit Rujukan Nasional (Tipe A)', 'city': 'Jakarta Pusat', 'phone': '(021) 5684093', 'status': 'Aktif'},
-          {'id': 'FK2-03', 'name': 'RS Spesialis Sentosa Utama', 'type': 'Rumah Sakit Khusus Spesialistik (Tipe B)', 'city': 'Jakarta Barat', 'phone': '(021) 5698200', 'status': 'Aktif'}
-        ]) %}
-        <tr>
-          <td><b>{{ f.id }}</b></td>
-          <td><b>{{ f.name }}</b></td>
-          <td>{{ f.type }}</td>
-          <td>{{ f.city }}</td>
-          <td>{{ f.phone }}</td>
-          <td><span class="status green">{{ f.status }}</span></td>
-        </tr>
-        {% endfor %}
-      </tbody>
     </table>
   </div>
 </section>
@@ -180,52 +141,6 @@
     </form>
   </div>
 </div>
-
-<!-- MODAL TAMBAH MITRA FASKES 2 -->
-<div class="modal" id="addFaskes2Modal">
-  <div class="modal-box" style="max-width:540px;">
-    <div class="modal-head">
-      <h2>Tambah Mitra Faskes Tingkat 2</h2>
-      <button class="icon-btn" id="closeAddFaskes2Modal" type="button">×</button>
-    </div>
-    <form method="POST" action="{{ url_for('system.add_faskes2') }}">
-      <div class="grid form">
-        <div class="field wide">
-          <label for="newFaskesName">Nama Fasilitas / Rumah Sakit *</label>
-          <input id="newFaskesName" name="name" required placeholder="Contoh: RSUD Dr. Soetomo">
-        </div>
-
-        <div class="field">
-          <label for="newFaskesType">Tipe Fasilitas / Kelas</label>
-          <input id="newFaskesType" name="type" required placeholder="Contoh: RS Umum Daerah (Tipe A)">
-        </div>
-
-        <div class="field">
-          <label for="newFaskesCity">Kota / Wilayah</label>
-          <input id="newFaskesCity" name="city" required placeholder="Contoh: Surabaya">
-        </div>
-
-        <div class="field">
-          <label for="newFaskesPhone">Nomor Telepon / Hotline</label>
-          <input id="newFaskesPhone" name="phone" placeholder="Contoh: (031) 5501078">
-        </div>
-
-        <div class="field">
-          <label for="newFaskesStatus">Status Kemitraan</label>
-          <select id="newFaskesStatus" name="status">
-            <option value="Aktif">Aktif</option>
-            <option value="Nonaktif">Nonaktif</option>
-          </select>
-        </div>
-      </div>
-
-      <div class="actions" style="margin-top:16px;">
-        <button type="button" class="btn" id="btnCancelAddFaskes2">Batal</button>
-        <button type="submit" class="btn primary">Simpan Mitra Faskes 2</button>
-      </div>
-    </form>
-  </div>
-</div>
 {% endblock %}
 
 {% block scripts %}
@@ -260,20 +175,10 @@ document.querySelectorAll('.btn-edit-req').forEach(b => {
 if(closeEditReq && editReqModal) closeEditReq.onclick = () => editReqModal.classList.remove('show');
 if(cancelEditReq && editReqModal) cancelEditReq.onclick = () => editReqModal.classList.remove('show');
 
-// Faskes 2 Modal
-const addFaskes2Modal = document.getElementById('addFaskes2Modal');
-const openAddFaskes2 = document.getElementById('btnOpenAddFaskes2');
-const closeAddFaskes2 = document.getElementById('closeAddFaskes2Modal');
-const cancelAddFaskes2 = document.getElementById('btnCancelAddFaskes2');
-
-if(openAddFaskes2 && addFaskes2Modal) openAddFaskes2.onclick = () => addFaskes2Modal.classList.add('show');
-if(closeAddFaskes2 && addFaskes2Modal) closeAddFaskes2.onclick = () => addFaskes2Modal.classList.remove('show');
-if(cancelAddFaskes2 && addFaskes2Modal) cancelAddFaskes2.onclick = () => addFaskes2Modal.classList.remove('show');
-
 window.onclick = e => {
   if(e.target === addReqModal) addReqModal.classList.remove('show');
   if(e.target === editReqModal) editReqModal.classList.remove('show');
-  if(e.target === addFaskes2Modal) addFaskes2Modal.classList.remove('show');
 };
 </script>
 {% endblock %}
+

@@ -11,6 +11,7 @@ Fitur:
 
 import os
 import json
+import sqlite3
 import urllib.parse
 import re
 from datetime import datetime
@@ -19,11 +20,52 @@ from flask import (
     Flask, render_template, request, redirect, url_for, flash, session, Blueprint
 )
 from werkzeug.middleware.proxy_fix import ProxyFix
+from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 app.secret_key = 'klinik-skem-secret-key-demo-2026'
 # Dukung reverse proxy / ngrok (X-Forwarded-For, X-Forwarded-Proto, X-Forwarded-Host)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1, x_prefix=1)
+
+# ==============================================================================
+# KONFIGURASI PENYIMPANAN BERKAS & DOKUMEN DIGITAL (UPLOAD SYSTEM)
+# ==============================================================================
+UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'uploads', 'documents')
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # Maksimum 16MB
+
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp', 'pdf', 'doc', 'docx'}
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def save_uploaded_document(file_obj, prefix='doc'):
+    """Menyimpan file dokumen/foto yang diunggah ke folder static/uploads/documents/ secara aman."""
+    if not file_obj or not getattr(file_obj, 'filename', None):
+        return None
+    orig_name = file_obj.filename.strip()
+    if not orig_name or not allowed_file(orig_name):
+        return None
+    ext = orig_name.rsplit('.', 1)[1].lower()
+    raw_base = orig_name.rsplit('.', 1)[0]
+    clean_base = secure_filename(raw_base) or 'berkas'
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    safe_filename = f"{prefix}_{timestamp}_{clean_base}.{ext}"
+    dest_path = os.path.join(UPLOAD_FOLDER, safe_filename)
+    try:
+        file_obj.save(dest_path)
+        doc_type = 'image' if ext in ['png', 'jpg', 'jpeg', 'webp'] else ('pdf' if ext == 'pdf' else 'document')
+        return {
+            'document_url': f"/static/uploads/documents/{safe_filename}",
+            'document_name': orig_name,
+            'document_filename': safe_filename,
+            'document_type': doc_type,
+            'uploaded_at': datetime.now().strftime("%d %b %Y %H:%M")
+        }
+    except Exception as e:
+        print(f"Error menyimpan file upload: {e}")
+        return None
 
 # ==============================================================================
 # KONFIGURASI GOOGLE OAUTH 2.0 (GOOGLE IDENTITY SERVICES & OAUTH REDIRECT)
@@ -149,209 +191,29 @@ SPECIALTY_CLINICS = [
 ]
 
 # ==============================================================================
-# DATASET IN-MEMORY: RUJUKAN PASIEN KE FASKES TINGKAT 2
+# INTEGRASI BASIS DATA SQLITE (klinik_skem.db)
 # ==============================================================================
+DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'klinik_skem.db')
+
+def get_db():
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
+    return conn
+
+# Dataset In-Memory (Akan dimuat & disinkronkan otomatis dari SQLite klinik_skem.db)
 REFERRALS = []
-
-# ==============================================================================
-# DATASET IN-MEMORY: PENGGUNA (USERS_DB & USERS_LIST)
-# ==============================================================================
-USERS_DB = {
-    'pasien@local': {
-        'id': 'U001',
-        'email': 'pasien@local',
-        'password': 'password123',
-        'name': 'Dinda Prameswari',
-        'role': 'patient',
-        'role_label': 'Pasien',
-        'phone': '0812-0000-1182',
-        'identity_number': 'DEMO-3173011182',
-        'scope': 'Klinik SKEM',
-        'status': 'Aktif',
-        'auth_provider': 'local',
-        'avatar_url': None
-    },
-    'petugas@local': {
-        'id': 'U002',
-        'email': 'petugas@local',
-        'password': 'password123',
-        'name': 'Andi Pratama',
-        'role': 'facility',
-        'role_label': 'Petugas Klinik',
-        'phone': '0812-0000-2233',
-        'identity_number': 'STAFF-042',
-        'scope': 'Klinik SKEM',
-        'status': 'Aktif',
-        'auth_provider': 'local',
-        'avatar_url': None
-    },
-    'admin@local': {
-        'id': 'U003',
-        'email': 'admin@local',
-        'password': 'password123',
-        'name': 'Administrator Sistem',
-        'role': 'system',
-        'role_label': 'Admin Sistem',
-        'phone': '0812-0000-9999',
-        'identity_number': 'ADM-001',
-        'scope': 'Pengaturan internal',
-        'status': 'Aktif',
-        'auth_provider': 'local',
-        'avatar_url': None
-    },
-    'dinda.skem@gmail.com': {
-        'id': 'U004',
-        'email': 'dinda.skem@gmail.com',
-        'password': None,
-        'name': 'Dinda Prameswari',
-        'role': 'patient',
-        'role_label': 'Pasien',
-        'phone': '0812-0000-1182',
-        'identity_number': 'DEMO-3173011182',
-        'scope': 'Klinik SKEM',
-        'status': 'Aktif',
-        'auth_provider': 'google',
-        'avatar_url': 'https://lh3.googleusercontent.com/a/default-user'
-    },
-    'andi.klinik@gmail.com': {
-        'id': 'U005',
-        'email': 'andi.klinik@gmail.com',
-        'password': None,
-        'name': 'Andi Pratama',
-        'role': 'facility',
-        'role_label': 'Petugas Klinik',
-        'phone': '0812-0000-2233',
-        'identity_number': 'STAFF-042',
-        'scope': 'Klinik SKEM',
-        'status': 'Aktif',
-        'auth_provider': 'google',
-        'avatar_url': 'https://lh3.googleusercontent.com/a/default-user'
-    }
-}
-
-USERS_LIST = [
-    {
-        'username': 'petugas@local',
-        'name': 'Andi Pratama',
-        'role': 'Petugas Klinik',
-        'scope': 'Klinik SKEM',
-        'status': 'Aktif',
-        'status_class': 'green'
-    },
-    {
-        'username': 'admin@local',
-        'name': 'Administrator Sistem',
-        'role': 'Admin Sistem',
-        'scope': 'Pengaturan internal',
-        'status': 'Aktif',
-        'status_class': 'green'
-    },
-    {
-        'username': 'pasien@local',
-        'name': 'Dinda Prameswari',
-        'role': 'Pasien',
-        'scope': 'Klinik SKEM',
-        'status': 'Aktif',
-        'status_class': 'green'
-    }
-]
-
-# ==============================================================================
-# DATASET IN-MEMORY: PROFIL PASIEN (SAVED_PROFILES)
-# ==============================================================================
-SAVED_PROFILES = {
-    'utama': {
-        'key': 'utama',
-        'user_email': 'pasien@local',
-        'name': 'Dinda Prameswari',
-        'id': 'DEMO-3173011182',
-        'identity_number': 'DEMO-3173011182',
-        'phone': '0812-0000-1182',
-        'dob': '1998-05-12',
-        'dob_text': '12 Mei 1998',
-        'relationship': 'Utama',
-        'badge': 'Profil utama · DEMO-NIK ••••1182'
-    }
-}
-
-# ==============================================================================
-# DATASET IN-MEMORY: MASTER PASIEN (PATIENTS)
-# ==============================================================================
+USERS_DB = {}
+USERS_LIST = []
+SAVED_PROFILES = {}
 PATIENTS = []
-
-# ==============================================================================
-# STATE IN-MEMORY: SISTEM & MANAJEMEN NOMOR ANTREAN KLINIK
-# ==============================================================================
-QUEUE_STATE = {
-    'prefix': 'A',
-    'current_number': 0,
-    'current_code': 'A-000',
-    'daily_sequence': 0,
-    'last_reset_date': datetime.now().strftime('%Y-%m-%d'),
-    'counter_name': 'Loket 1 · Poli Umum',
-    'total_called_today': 0
-}
-
-def parse_queue_number(queue_str):
-    """Mengekstrak angka integer dari kode antrean seperti 'A-016' -> 16."""
-    try:
-        if not queue_str:
-            return 0
-        if '-' in str(queue_str):
-            parts = str(queue_str).split('-')
-            return int(parts[1])
-        match = re.search(r'\d+', str(queue_str))
-        if match:
-            return int(match.group(0))
-    except Exception:
-        pass
-    return 0
-
-def check_daily_queue_reset():
-    """
-    Otomatis mereset nomor antrean setiap hari baru saat sistem diakses.
-    """
-    today_str = datetime.now().strftime('%Y-%m-%d')
-    if QUEUE_STATE.get('last_reset_date') != today_str:
-        old_code = QUEUE_STATE.get('current_code', 'A-000')
-        prefix = QUEUE_STATE.get('prefix', 'A')
-        QUEUE_STATE['current_number'] = 0
-        QUEUE_STATE['current_code'] = f"{prefix}-000"
-        QUEUE_STATE['daily_sequence'] = 0
-        QUEUE_STATE['last_reset_date'] = today_str
-        QUEUE_STATE['total_called_today'] = 0
-        
-        SYSTEM_LOGS.insert(0, {
-            'time': datetime.now().strftime("%d %b %Y %H:%M"),
-            'category': 'Reset Antrean Harian',
-            'event': f"Pergantian hari otomatis ({today_str}): Nomor antrean direset dari {old_code} menjadi {QUEUE_STATE['current_code']}",
-            'status': 'Otomatis',
-            'status_class': 'green'
-        })
-
-# ==============================================================================
-# DATASET IN-MEMORY: ANTREAN (QUEUE_LIST) & VERIFIKASI (REVIEW_LIST)
-# ==============================================================================
 QUEUE_LIST = []
 REVIEW_LIST = []
-
-# ==============================================================================
-# DATASET IN-MEMORY: PENDAFTARAN AKTIF & RIWAYAT KUNJUNGAN
-# ==============================================================================
 ACTIVE_REGISTRATIONS = []
 REGISTRATION_HISTORY = []
 REQUIRED_ACTIONS = []
-
-# ==============================================================================
-# DATASET IN-MEMORY: RESEP OBAT & FARMASI
-# ==============================================================================
 PRESCRIPTIONS = []
-
-# ==============================================================================
-# DATASET IN-MEMORY: RIWAYAT OPERASIONAL, LOG SISTEM, PERSYARATAN & LAYANAN
-# ==============================================================================
 OPERATIONAL_HISTORY = []
-
 REQUIREMENTS = [
     {
         'clinic': 'Poli Umum',
@@ -414,15 +276,1011 @@ SERVICES_LIST = [
     }
 ]
 
-SYSTEM_LOGS = [
+SYSTEM_LOGS = []
+
+QUEUE_STATE = {
+    'prefix': 'A',
+    'current_number': 0,
+    'current_code': 'A-000',
+    'daily_sequence': 0,
+    'last_reset_date': datetime.now().strftime('%Y-%m-%d'),
+    'counter_name': 'Loket 1 · Poli Umum',
+    'total_called_today': 0
+}
+
+DEFAULT_SEED_USERS = [
     {
-        'time': datetime.now().strftime("%d %b %Y %H:%M"),
-        'category': 'Sistem',
-        'event': 'Basis data dan antrean klinik berhasil direset bersih (Data pengguna dipertahankan).',
-        'status': 'Selesai',
-        'status_class': 'green'
+        'id': 'U001',
+        'email': 'pasien@local',
+        'password': 'password123',
+        'name': 'Dinda Prameswari',
+        'role': 'patient',
+        'role_label': 'Pasien',
+        'phone': '0812-0000-1182',
+        'identity_number': 'DEMO-3173011182',
+        'scope': 'Klinik SKEM',
+        'status': 'Aktif',
+        'auth_provider': 'local',
+        'avatar_url': None
+    },
+    {
+        'id': 'U002',
+        'email': 'petugas@local',
+        'password': 'password123',
+        'name': 'Andi Pratama',
+        'role': 'facility',
+        'role_label': 'Petugas Klinik',
+        'phone': '0812-0000-2233',
+        'identity_number': 'STAFF-042',
+        'scope': 'Klinik SKEM',
+        'status': 'Aktif',
+        'auth_provider': 'local',
+        'avatar_url': None
+    },
+    {
+        'id': 'U003',
+        'email': 'admin@local',
+        'password': 'password123',
+        'name': 'Administrator Sistem',
+        'role': 'system',
+        'role_label': 'Admin Sistem',
+        'phone': '0812-0000-9999',
+        'identity_number': 'ADM-001',
+        'scope': 'Pengaturan internal',
+        'status': 'Aktif',
+        'auth_provider': 'local',
+        'avatar_url': None
+    },
+    {
+        'id': 'U004',
+        'email': 'dinda.skem@gmail.com',
+        'password': None,
+        'name': 'Dinda Prameswari',
+        'role': 'patient',
+        'role_label': 'Pasien',
+        'phone': '0812-0000-1182',
+        'identity_number': 'DEMO-3173011182',
+        'scope': 'Klinik SKEM',
+        'status': 'Aktif',
+        'auth_provider': 'google',
+        'avatar_url': 'https://lh3.googleusercontent.com/a/default-user'
+    },
+    {
+        'id': 'U005',
+        'email': 'andi.klinik@gmail.com',
+        'password': None,
+        'name': 'Andi Pratama',
+        'role': 'facility',
+        'role_label': 'Petugas Klinik',
+        'phone': '0812-0000-2233',
+        'identity_number': 'STAFF-042',
+        'scope': 'Klinik SKEM',
+        'status': 'Aktif',
+        'auth_provider': 'google',
+        'avatar_url': 'https://lh3.googleusercontent.com/a/default-user'
     }
 ]
+
+DEFAULT_SEED_PROFILES = {
+    'utama': {
+        'key': 'utama',
+        'user_email': 'pasien@local',
+        'name': 'Dinda Prameswari',
+        'id': 'DEMO-3173011182',
+        'identity_number': 'DEMO-3173011182',
+        'phone': '0812-0000-1182',
+        'dob': '1998-05-12',
+        'dob_text': '12 Mei 1998',
+        'relationship': 'Utama',
+        'badge': 'Profil utama · DEMO-NIK ••••1182'
+    }
+}
+
+def parse_queue_number(queue_str):
+    """Mengekstrak angka integer dari kode antrean seperti 'A-016' -> 16."""
+    try:
+        if not queue_str:
+            return 0
+        if '-' in str(queue_str):
+            parts = str(queue_str).split('-')
+            return int(parts[1])
+        match = re.search(r'\d+', str(queue_str))
+        if match:
+            return int(match.group(0))
+    except Exception:
+        pass
+    return 0
+
+def init_sqlite_db():
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY,
+        email TEXT UNIQUE NOT NULL,
+        password TEXT,
+        name TEXT NOT NULL,
+        role TEXT NOT NULL,
+        role_label TEXT NOT NULL,
+        phone TEXT,
+        identity_number TEXT,
+        scope TEXT DEFAULT 'Klinik SKEM',
+        status TEXT DEFAULT 'Aktif',
+        auth_provider TEXT DEFAULT 'local',
+        google_id TEXT,
+        avatar_url TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )""")
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS profiles (
+        key TEXT PRIMARY KEY,
+        user_email TEXT NOT NULL,
+        name TEXT NOT NULL,
+        identity_number TEXT NOT NULL,
+        phone TEXT,
+        dob TEXT,
+        dob_text TEXT,
+        relationship TEXT,
+        badge TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )""")
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS patients (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        phone TEXT,
+        date TEXT,
+        service TEXT,
+        finance TEXT,
+        status TEXT,
+        form TEXT,
+        faskes2 TEXT,
+        ref_id TEXT
+    )""")
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS registrations (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        code TEXT UNIQUE NOT NULL,
+        user_email TEXT NOT NULL,
+        patient_name TEXT NOT NULL,
+        clinic TEXT NOT NULL,
+        date TEXT NOT NULL,
+        status TEXT NOT NULL,
+        status_class TEXT,
+        hospital TEXT DEFAULT 'Klinik SKEM',
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )""")
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS required_actions (
+        code TEXT PRIMARY KEY,
+        title TEXT,
+        service TEXT,
+        patient_name TEXT,
+        patient_id TEXT,
+        reason TEXT,
+        user_email TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )""")
+    try:
+        col_names = [row[1] for row in c.execute("PRAGMA table_info(required_actions)").fetchall()]
+        if 'user_email' not in col_names:
+            c.execute("ALTER TABLE required_actions ADD COLUMN user_email TEXT")
+    except Exception as e:
+        print(f"Error migrasi tabel required_actions: {e}")
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS queues (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        queue_no TEXT UNIQUE NOT NULL,
+        patient_id TEXT NOT NULL,
+        patient_name TEXT NOT NULL,
+        patient_email TEXT,
+        source TEXT,
+        service TEXT NOT NULL,
+        status TEXT NOT NULL,
+        status_class TEXT,
+        can_call INTEGER DEFAULT 1,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )""")
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS queue_state (
+        id INTEGER PRIMARY KEY,
+        prefix TEXT DEFAULT 'A',
+        current_number INTEGER DEFAULT 0,
+        current_code TEXT DEFAULT 'A-000',
+        daily_sequence INTEGER DEFAULT 0,
+        last_reset_date TEXT,
+        counter_name TEXT DEFAULT 'Loket 1 · Poli Umum',
+        total_called_today INTEGER DEFAULT 0
+    )""")
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS reviews (
+        id TEXT PRIMARY KEY,
+        patient_id TEXT NOT NULL,
+        patient_name TEXT NOT NULL,
+        source TEXT DEFAULT 'Online',
+        service TEXT NOT NULL,
+        readiness TEXT NOT NULL,
+        status_class TEXT,
+        reason TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )""")
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS prescriptions (
+        id TEXT PRIMARY KEY,
+        patient_id TEXT NOT NULL,
+        patient_name TEXT NOT NULL,
+        patient_email TEXT NOT NULL,
+        doctor TEXT NOT NULL,
+        clinic TEXT NOT NULL,
+        date TEXT NOT NULL,
+        time TEXT NOT NULL,
+        queue_no TEXT,
+        status TEXT NOT NULL,
+        status_class TEXT,
+        counter TEXT NOT NULL,
+        notes TEXT,
+        medications_json TEXT NOT NULL,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )""")
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS referrals (
+        id TEXT PRIMARY KEY,
+        patient_id TEXT,
+        patient_name TEXT,
+        patient_email TEXT,
+        source_faskes TEXT,
+        target_faskes TEXT,
+        target_clinic TEXT,
+        notes TEXT,
+        doctor TEXT,
+        date TEXT,
+        time TEXT,
+        status TEXT,
+        status_class TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )""")
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS operational_history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        desc TEXT NOT NULL,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )""")
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS requirements (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        clinic TEXT NOT NULL,
+        reqs TEXT NOT NULL,
+        mandatory TEXT NOT NULL,
+        status TEXT NOT NULL,
+        status_class TEXT
+    )""")
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS services (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        hospital TEXT NOT NULL,
+        requirements TEXT NOT NULL,
+        status TEXT NOT NULL,
+        status_class TEXT
+    )""")
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS faskes2_partners (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        type TEXT NOT NULL,
+        city TEXT NOT NULL,
+        phone TEXT NOT NULL,
+        status TEXT NOT NULL,
+        status_class TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )""")
+    c.execute("""
+    CREATE TABLE IF NOT EXISTS system_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        time TEXT NOT NULL,
+        category TEXT NOT NULL,
+        event TEXT NOT NULL,
+        status TEXT NOT NULL,
+        status_class TEXT
+    )""")
+
+    for sql in [
+        "ALTER TABLE patients ADD COLUMN faskes2 TEXT",
+        "ALTER TABLE patients ADD COLUMN ref_id TEXT",
+        "ALTER TABLE patients ADD COLUMN document_url TEXT",
+        "ALTER TABLE patients ADD COLUMN document_name TEXT",
+        "ALTER TABLE patients ADD COLUMN document_type TEXT",
+        "ALTER TABLE reviews ADD COLUMN reason TEXT",
+        "ALTER TABLE reviews ADD COLUMN document_url TEXT",
+        "ALTER TABLE reviews ADD COLUMN document_name TEXT",
+        "ALTER TABLE reviews ADD COLUMN document_type TEXT",
+        "ALTER TABLE registrations ADD COLUMN target_faskes TEXT",
+        "ALTER TABLE registrations ADD COLUMN target_clinic TEXT",
+        "ALTER TABLE registrations ADD COLUMN ref_id TEXT",
+        "ALTER TABLE registrations ADD COLUMN patient_id TEXT",
+        "ALTER TABLE registrations ADD COLUMN finance TEXT",
+        "ALTER TABLE registrations ADD COLUMN document_url TEXT",
+        "ALTER TABLE registrations ADD COLUMN document_name TEXT",
+        "ALTER TABLE registrations ADD COLUMN document_type TEXT",
+        "ALTER TABLE required_actions ADD COLUMN document_url TEXT",
+        "ALTER TABLE required_actions ADD COLUMN document_name TEXT",
+        "ALTER TABLE required_actions ADD COLUMN document_type TEXT"
+    ]:
+        try:
+            c.execute(sql)
+        except Exception:
+            pass
+
+    c.execute("SELECT COUNT(*) FROM users")
+    if c.fetchone()[0] == 0:
+        for u in DEFAULT_SEED_USERS:
+            c.execute("""
+            INSERT INTO users (id, email, password, name, role, role_label, phone, identity_number, scope, status, auth_provider, google_id, avatar_url)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (u['id'], u['email'], u['password'], u['name'], u['role'], u['role_label'], u['phone'], u['identity_number'], u['scope'], u['status'], u['auth_provider'], u.get('google_id'), u.get('avatar_url')))
+        for k, p in DEFAULT_SEED_PROFILES.items():
+            c.execute("""
+            INSERT INTO profiles (key, user_email, name, identity_number, phone, dob, dob_text, relationship, badge)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (k, p['user_email'], p['name'], p['identity_number'], p['phone'], p['dob'], p['dob_text'], p['relationship'], p['badge']))
+
+    c.execute("SELECT COUNT(*) FROM faskes2_partners")
+    if c.fetchone()[0] == 0:
+        for f in FASKES2_PARTNERS:
+            c.execute("""
+            INSERT INTO faskes2_partners (id, name, type, city, phone, status, status_class)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (f['id'], f['name'], f['type'], f['city'], f['phone'], f['status'], f.get('status_class', 'green')))
+
+    c.execute("SELECT COUNT(*) FROM queue_state WHERE id = 1")
+    if c.fetchone()[0] == 0:
+        c.execute("""
+        INSERT INTO queue_state (id, prefix, current_number, current_code, daily_sequence, last_reset_date, counter_name, total_called_today)
+        VALUES (1, 'A', 0, 'A-000', 0, ?, 'Loket 1 · Poli Umum', 0)
+        """, (datetime.now().strftime('%Y-%m-%d'),))
+
+    conn.commit()
+    conn.close()
+
+def load_all_from_db():
+    global USERS_DB, USERS_LIST, SAVED_PROFILES, PATIENTS, ACTIVE_REGISTRATIONS
+    global REGISTRATION_HISTORY, REQUIRED_ACTIONS, QUEUE_LIST, QUEUE_STATE
+    global REVIEW_LIST, PRESCRIPTIONS, REFERRALS, OPERATIONAL_HISTORY, SYSTEM_LOGS
+    global FASKES2_PARTNERS, REQUIREMENTS, SERVICES_LIST
+
+    try:
+        conn = get_db()
+
+        u_rows = conn.execute("SELECT * FROM users ORDER BY created_at ASC").fetchall()
+        USERS_DB.clear()
+        USERS_LIST.clear()
+        for r in u_rows:
+            d = dict(r)
+            USERS_DB[d['email']] = d
+            USERS_LIST.append({
+                'username': d['email'],
+                'name': d['name'],
+                'role': d['role_label'],
+                'scope': d.get('scope', 'Klinik SKEM'),
+                'status': d.get('status', 'Aktif'),
+                'status_class': 'green' if d.get('status') == 'Aktif' else 'amber'
+            })
+
+        p_rows = conn.execute("SELECT * FROM profiles ORDER BY created_at ASC").fetchall()
+        SAVED_PROFILES.clear()
+        for r in p_rows:
+            SAVED_PROFILES[r['key']] = dict(r)
+
+        pat_rows = conn.execute("SELECT * FROM patients ORDER BY id ASC").fetchall()
+        PATIENTS.clear()
+        for r in pat_rows:
+            PATIENTS.append(dict(r))
+
+        reg_rows = conn.execute("SELECT * FROM registrations ORDER BY id DESC").fetchall()
+        REGISTRATION_HISTORY.clear()
+        ACTIVE_REGISTRATIONS.clear()
+        for r in reg_rows:
+            item = dict(r)
+            item['id'] = item['code']
+            item['service'] = item.get('clinic', 'Poli Umum')
+            if not item.get('patient_id'):
+                item['patient_id'] = 'P-' + item['code'].replace('FF-', '')
+            if not item.get('finance'):
+                item['finance'] = 'Mandiri'
+            REGISTRATION_HISTORY.append(item)
+            if item.get('status') not in ('Selesai', 'Selesai di Faskes Ini'):
+                ACTIVE_REGISTRATIONS.append(item)
+
+        act_rows = conn.execute("SELECT * FROM required_actions ORDER BY created_at DESC").fetchall()
+        REQUIRED_ACTIONS.clear()
+        for r in act_rows:
+            REQUIRED_ACTIONS.append(dict(r))
+
+        q_rows = conn.execute("SELECT * FROM queues ORDER BY id ASC").fetchall()
+        QUEUE_LIST.clear()
+        for r in q_rows:
+            d = dict(r)
+            d['can_call'] = bool(d.get('can_call', 1))
+            QUEUE_LIST.append(d)
+
+        qs_row = conn.execute("SELECT * FROM queue_state WHERE id = 1").fetchone()
+        if qs_row:
+            QUEUE_STATE.update(dict(qs_row))
+
+        rev_rows = conn.execute("SELECT * FROM reviews ORDER BY id ASC").fetchall()
+        REVIEW_LIST.clear()
+        for r in rev_rows:
+            REVIEW_LIST.append(dict(r))
+
+        rx_rows = conn.execute("SELECT * FROM prescriptions ORDER BY created_at DESC, id DESC").fetchall()
+        PRESCRIPTIONS.clear()
+        for r in rx_rows:
+            d = dict(r)
+            try:
+                d['medications'] = json.loads(d.get('medications_json') or '[]')
+            except Exception:
+                d['medications'] = []
+            PRESCRIPTIONS.append(d)
+
+        ref_rows = conn.execute("SELECT * FROM referrals ORDER BY created_at DESC, id DESC").fetchall()
+        REFERRALS.clear()
+        for r in ref_rows:
+            REFERRALS.append(dict(r))
+
+        fk2_rows = conn.execute("SELECT * FROM faskes2_partners ORDER BY id ASC").fetchall()
+        if fk2_rows:
+            FASKES2_PARTNERS.clear()
+            for r in fk2_rows:
+                FASKES2_PARTNERS.append(dict(r))
+
+        req_rows = conn.execute("SELECT * FROM requirements ORDER BY id ASC").fetchall()
+        if req_rows:
+            REQUIREMENTS.clear()
+            for r in req_rows:
+                REQUIREMENTS.append(dict(r))
+
+        srv_rows = conn.execute("SELECT * FROM services ORDER BY id ASC").fetchall()
+        if srv_rows:
+            SERVICES_LIST.clear()
+            for r in srv_rows:
+                SERVICES_LIST.append(dict(r))
+
+        op_rows = conn.execute("SELECT * FROM operational_history ORDER BY id DESC").fetchall()
+        OPERATIONAL_HISTORY.clear()
+        for r in op_rows:
+            OPERATIONAL_HISTORY.append(dict(r))
+
+        log_rows = conn.execute("SELECT * FROM system_logs ORDER BY id DESC").fetchall()
+        if log_rows:
+            SYSTEM_LOGS.clear()
+            for r in log_rows:
+                SYSTEM_LOGS.append(dict(r))
+
+        conn.close()
+    except Exception as e:
+        print(f"Error memuat data SQLite: {e}")
+
+def db_save_user(u):
+    try:
+        conn = get_db()
+        conn.execute("""
+            INSERT INTO users (id, email, password, name, role, role_label, phone, identity_number, scope, status, auth_provider, google_id, avatar_url)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(email) DO UPDATE SET
+                password=excluded.password, name=excluded.name, role=excluded.role, role_label=excluded.role_label,
+                phone=excluded.phone, identity_number=excluded.identity_number, scope=excluded.scope, status=excluded.status,
+                auth_provider=excluded.auth_provider, google_id=excluded.google_id, avatar_url=excluded.avatar_url
+        """, (
+            u.get('id'), u.get('email', '').lower(), u.get('password'), u.get('name'), u.get('role'),
+            u.get('role_label'), u.get('phone', ''), u.get('identity_number', ''), u.get('scope', 'Klinik SKEM'),
+            u.get('status', 'Aktif'), u.get('auth_provider', 'local'), u.get('google_id'), u.get('avatar_url')
+        ))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"Error db_save_user: {e}")
+
+def db_update_user_status(email, status):
+    try:
+        conn = get_db()
+        conn.execute("UPDATE users SET status = ? WHERE LOWER(email) = LOWER(?)", (status, email))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"Error db_update_user_status: {e}")
+
+def db_save_profile(p):
+    try:
+        conn = get_db()
+        conn.execute("""
+            INSERT INTO profiles (key, user_email, name, identity_number, phone, dob, dob_text, relationship, badge)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(key) DO UPDATE SET
+                user_email=excluded.user_email, name=excluded.name, identity_number=excluded.identity_number,
+                phone=excluded.phone, dob=excluded.dob, dob_text=excluded.dob_text, relationship=excluded.relationship, badge=excluded.badge
+        """, (
+            p.get('key'), p.get('user_email', '').lower(), p.get('name'), p.get('identity_number', ''),
+            p.get('phone', ''), p.get('dob', ''), p.get('dob_text', ''), p.get('relationship', 'Keluarga'), p.get('badge', '')
+        ))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"Error db_save_profile: {e}")
+
+def db_delete_profile(key):
+    try:
+        conn = get_db()
+        conn.execute("DELETE FROM profiles WHERE key = ?", (key,))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"Error db_delete_profile: {e}")
+
+def db_save_patient(p):
+    try:
+        conn = get_db()
+        conn.execute("""
+            INSERT INTO patients (id, name, phone, date, service, finance, status, form, faskes2, ref_id, document_url, document_name, document_type)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+                name=excluded.name, phone=excluded.phone, date=excluded.date, service=excluded.service,
+                finance=excluded.finance, status=excluded.status, form=excluded.form, faskes2=excluded.faskes2, ref_id=excluded.ref_id,
+                document_url=excluded.document_url, document_name=excluded.document_name, document_type=excluded.document_type
+        """, (
+            p.get('id'), p.get('name'), p.get('phone', ''), p.get('date', ''), p.get('service', 'Poli Umum'),
+            p.get('finance', 'Mandiri'), p.get('status', 'Terdaftar'), p.get('form', ''), p.get('faskes2'), p.get('ref_id'),
+            p.get('document_url'), p.get('document_name'), p.get('document_type')
+        ))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"Error db_save_patient: {e}")
+
+def db_save_registration(reg):
+    try:
+        code = reg.get('code') or reg.get('id')
+        conn = get_db()
+        conn.execute("""
+            INSERT INTO registrations (code, user_email, patient_name, patient_id, clinic, date, finance, status, status_class, hospital, target_faskes, target_clinic, ref_id, document_url, document_name, document_type)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(code) DO UPDATE SET
+                patient_name=excluded.patient_name, patient_id=excluded.patient_id, clinic=excluded.clinic, date=excluded.date,
+                finance=excluded.finance, status=excluded.status, status_class=excluded.status_class, hospital=excluded.hospital,
+                target_faskes=excluded.target_faskes, target_clinic=excluded.target_clinic, ref_id=excluded.ref_id,
+                document_url=excluded.document_url, document_name=excluded.document_name, document_type=excluded.document_type
+        """, (
+            code, reg.get('user_email', ''), reg.get('patient_name', ''), reg.get('patient_id', ''),
+            reg.get('clinic') or reg.get('service', 'Poli Umum'), reg.get('date', ''),
+            reg.get('finance', 'Mandiri'),
+            reg.get('status', 'Menunggu verifikasi'), reg.get('status_class', 'blue'), reg.get('hospital', 'Klinik SKEM'),
+            reg.get('target_faskes'), reg.get('target_clinic'), reg.get('ref_id'),
+            reg.get('document_url'), reg.get('document_name'), reg.get('document_type')
+        ))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"Error db_save_registration: {e}")
+
+def db_update_registration_status(code, status, status_class, hospital=None, target_faskes=None, target_clinic=None, ref_id=None):
+    try:
+        conn = get_db()
+        query = "UPDATE registrations SET status = ?, status_class = ?"
+        params = [status, status_class]
+        if hospital is not None:
+            query += ", hospital = ?"
+            params.append(hospital)
+        if target_faskes is not None:
+            query += ", target_faskes = ?"
+            params.append(target_faskes)
+        if target_clinic is not None:
+            query += ", target_clinic = ?"
+            params.append(target_clinic)
+        if ref_id is not None:
+            query += ", ref_id = ?"
+            params.append(ref_id)
+        query += " WHERE code = ?"
+        params.append(code)
+        conn.execute(query, tuple(params))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"Error db_update_registration_status: {e}")
+
+def db_save_required_action(action):
+    try:
+        conn = get_db()
+        conn.execute("""
+            INSERT INTO required_actions (code, title, service, patient_name, patient_id, reason, user_email, document_url, document_name, document_type)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(code) DO UPDATE SET
+                title=excluded.title, service=excluded.service, patient_name=excluded.patient_name,
+                patient_id=excluded.patient_id, reason=excluded.reason, user_email=excluded.user_email,
+                document_url=excluded.document_url, document_name=excluded.document_name, document_type=excluded.document_type
+        """, (
+            action.get('code'), action.get('title'), action.get('service'), action.get('patient_name'),
+            action.get('patient_id'), action.get('reason'), action.get('user_email', ''),
+            action.get('document_url'), action.get('document_name'), action.get('document_type')
+        ))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"Error db_save_required_action: {e}")
+
+def db_delete_required_action(code):
+    try:
+        conn = get_db()
+        conn.execute("DELETE FROM required_actions WHERE code = ?", (code,))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"Error db_delete_required_action: {e}")
+
+def db_save_queue(q):
+    try:
+        conn = get_db()
+        conn.execute("""
+            INSERT INTO queues (queue_no, patient_id, patient_name, patient_email, source, service, status, status_class, can_call)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(queue_no) DO UPDATE SET
+                patient_id=excluded.patient_id, patient_name=excluded.patient_name, source=excluded.source,
+                service=excluded.service, status=excluded.status, status_class=excluded.status_class, can_call=excluded.can_call
+        """, (
+            q.get('queue_no'), q.get('patient_id'), q.get('patient_name'), q.get('patient_email', ''),
+            q.get('source', 'Online'), q.get('service', 'Poli Umum'), q.get('status', 'Menunggu'),
+            q.get('status_class', 'blue'), 1 if q.get('can_call', True) else 0
+        ))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"Error db_save_queue: {e}")
+
+def db_update_queue_status(queue_no, status, status_class='blue', can_call=1):
+    try:
+        conn = get_db()
+        conn.execute("UPDATE queues SET status = ?, status_class = ?, can_call = ? WHERE queue_no = ?", (status, status_class, can_call, queue_no))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"Error db_update_queue_status: {e}")
+
+def db_save_queue_state():
+    try:
+        conn = get_db()
+        conn.execute("""
+            INSERT INTO queue_state (id, prefix, current_number, current_code, daily_sequence, last_reset_date, counter_name, total_called_today)
+            VALUES (1, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+                prefix=excluded.prefix, current_number=excluded.current_number, current_code=excluded.current_code,
+                daily_sequence=excluded.daily_sequence, last_reset_date=excluded.last_reset_date,
+                counter_name=excluded.counter_name, total_called_today=excluded.total_called_today
+        """, (
+            QUEUE_STATE.get('prefix', 'A'), QUEUE_STATE.get('current_number', 0), QUEUE_STATE.get('current_code', 'A-000'),
+            QUEUE_STATE.get('daily_sequence', 0), QUEUE_STATE.get('last_reset_date', ''), QUEUE_STATE.get('counter_name', 'Loket 1 · Poli Umum'),
+            QUEUE_STATE.get('total_called_today', 0)
+        ))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"Error db_save_queue_state: {e}")
+
+def db_save_review(r):
+    try:
+        conn = get_db()
+        conn.execute("""
+            INSERT INTO reviews (id, patient_id, patient_name, source, service, readiness, status_class, reason, document_url, document_name, document_type)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+                patient_id=excluded.patient_id, patient_name=excluded.patient_name, source=excluded.source,
+                service=excluded.service, readiness=excluded.readiness, status_class=excluded.status_class, reason=excluded.reason,
+                document_url=excluded.document_url, document_name=excluded.document_name, document_type=excluded.document_type
+        """, (
+            r.get('id'), r.get('patient_id'), r.get('patient_name'), r.get('source', 'Online'),
+            r.get('service', 'Poli Umum'), r.get('readiness', 'Perlu diperiksa'), r.get('status_class', 'amber'), r.get('reason'),
+            r.get('document_url'), r.get('document_name'), r.get('document_type')
+        ))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"Error db_save_review: {e}")
+
+def db_update_review_status(review_id, readiness, status_class, reason=None):
+    try:
+        conn = get_db()
+        if reason is not None:
+            conn.execute("UPDATE reviews SET readiness = ?, status_class = ?, reason = ? WHERE id = ?", (readiness, status_class, reason, review_id))
+        else:
+            conn.execute("UPDATE reviews SET readiness = ?, status_class = ? WHERE id = ?", (readiness, status_class, review_id))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"Error db_update_review_status: {e}")
+
+def db_save_prescription(rx):
+    try:
+        conn = get_db()
+        meds_json = json.dumps(rx.get('medications', []))
+        conn.execute("""
+            INSERT INTO prescriptions (id, patient_id, patient_name, patient_email, doctor, clinic, date, time, queue_no, status, status_class, counter, notes, medications_json)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+                patient_id=excluded.patient_id, patient_name=excluded.patient_name, patient_email=excluded.patient_email,
+                doctor=excluded.doctor, clinic=excluded.clinic, date=excluded.date, time=excluded.time,
+                queue_no=excluded.queue_no, status=excluded.status, status_class=excluded.status_class,
+                counter=excluded.counter, notes=excluded.notes, medications_json=excluded.medications_json
+        """, (
+            rx.get('id'), rx.get('patient_id'), rx.get('patient_name'), rx.get('patient_email', ''),
+            rx.get('doctor'), rx.get('clinic'), rx.get('date'), rx.get('time'), rx.get('queue_no'),
+            rx.get('status'), rx.get('status_class'), rx.get('counter'), rx.get('notes'), meds_json
+        ))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"Error db_save_prescription: {e}")
+
+def db_update_prescription_status(rx_id, status, status_class):
+    try:
+        conn = get_db()
+        conn.execute("UPDATE prescriptions SET status = ?, status_class = ? WHERE id = ?", (status, status_class, rx_id))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"Error db_update_prescription_status: {e}")
+
+def db_delete_prescription(rx_id):
+    try:
+        conn = get_db()
+        conn.execute("DELETE FROM prescriptions WHERE id = ?", (rx_id,))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"Error db_delete_prescription: {e}")
+
+def db_save_referral(ref):
+    try:
+        conn = get_db()
+        conn.execute("""
+            INSERT INTO referrals (id, patient_id, patient_name, patient_email, source_faskes, target_faskes, target_clinic, notes, doctor, date, time, status, status_class)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+                patient_id=excluded.patient_id, patient_name=excluded.patient_name, patient_email=excluded.patient_email,
+                source_faskes=excluded.source_faskes, target_faskes=excluded.target_faskes, target_clinic=excluded.target_clinic,
+                notes=excluded.notes, doctor=excluded.doctor, date=excluded.date, time=excluded.time,
+                status=excluded.status, status_class=excluded.status_class
+        """, (
+            ref.get('id'), ref.get('patient_id'), ref.get('patient_name'), ref.get('patient_email', ''),
+            ref.get('source_faskes', 'Klinik SKEM'), ref.get('target_faskes'), ref.get('target_clinic'),
+            ref.get('notes'), ref.get('doctor'), ref.get('date'), ref.get('time'), ref.get('status'), ref.get('status_class')
+        ))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"Error db_save_referral: {e}")
+
+def db_save_operational_history(title, desc):
+    try:
+        conn = get_db()
+        conn.execute("INSERT INTO operational_history (title, desc) VALUES (?, ?)", (title, desc))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"Error db_save_operational_history: {e}")
+
+def db_save_system_log(category, event, status='Berhasil', status_class='green'):
+    now_str = datetime.now().strftime("%d %b %Y %H:%M")
+    try:
+        conn = get_db()
+        conn.execute("INSERT INTO system_logs (time, category, event, status, status_class) VALUES (?, ?, ?, ?, ?)", (now_str, category, event, status, status_class))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"Error db_save_system_log: {e}")
+
+def db_save_faskes2_partner(p):
+    try:
+        conn = get_db()
+        conn.execute("""
+            INSERT INTO faskes2_partners (id, name, type, city, phone, status, status_class)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+                name=excluded.name, type=excluded.type, city=excluded.city,
+                phone=excluded.phone, status=excluded.status, status_class=excluded.status_class
+        """, (
+            p.get('id'), p.get('name'), p.get('type'), p.get('city'), p.get('phone'),
+            p.get('status', 'Aktif'), p.get('status_class', 'green')
+        ))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"Error db_save_faskes2_partner: {e}")
+
+def db_delete_faskes2_partner(partner_id):
+    try:
+        conn = get_db()
+        conn.execute("DELETE FROM faskes2_partners WHERE id = ?", (partner_id,))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"Error db_delete_faskes2_partner: {e}")
+
+def db_save_requirement(req, req_id=None):
+    try:
+        conn = get_db()
+        if req_id:
+            conn.execute("""
+                UPDATE requirements SET clinic = ?, reqs = ?, mandatory = ?, status = ?, status_class = ?
+                WHERE id = ?
+            """, (req.get('clinic'), req.get('reqs'), req.get('mandatory', 'Ya'), req.get('status', 'Aktif'), req.get('status_class', 'green'), req_id))
+        else:
+            conn.execute("""
+                INSERT INTO requirements (clinic, reqs, mandatory, status, status_class)
+                VALUES (?, ?, ?, ?, ?)
+            """, (req.get('clinic'), req.get('reqs'), req.get('mandatory', 'Ya'), req.get('status', 'Aktif'), req.get('status_class', 'green')))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"Error db_save_requirement: {e}")
+
+def db_delete_requirement(clinic_name):
+    try:
+        conn = get_db()
+        conn.execute("DELETE FROM requirements WHERE clinic = ?", (clinic_name,))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"Error db_delete_requirement: {e}")
+
+def db_save_service(srv, srv_id=None):
+    try:
+        conn = get_db()
+        if srv_id:
+            conn.execute("""
+                UPDATE services SET name = ?, hospital = ?, requirements = ?, status = ?, status_class = ?
+                WHERE id = ?
+            """, (srv.get('name'), srv.get('hospital', 'Klinik SKEM'), srv.get('requirements', ''), srv.get('status', 'Aktif'), srv.get('status_class', 'green'), srv_id))
+        else:
+            conn.execute("""
+                INSERT INTO services (name, hospital, requirements, status, status_class)
+                VALUES (?, ?, ?, ?, ?)
+            """, (srv.get('name'), srv.get('hospital', 'Klinik SKEM'), srv.get('requirements', ''), srv.get('status', 'Aktif'), srv.get('status_class', 'green')))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"Error db_save_service: {e}")
+
+def db_delete_service(service_name):
+    try:
+        conn = get_db()
+        conn.execute("DELETE FROM services WHERE name = ?", (service_name,))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"Error db_delete_service: {e}")
+
+def db_reset_all_except_users():
+    try:
+        conn = get_db()
+        conn.execute("DELETE FROM registrations")
+        conn.execute("DELETE FROM required_actions")
+        conn.execute("DELETE FROM queues")
+        conn.execute("DELETE FROM reviews")
+        conn.execute("DELETE FROM prescriptions")
+        conn.execute("DELETE FROM referrals")
+        conn.execute("DELETE FROM operational_history")
+        conn.execute("DELETE FROM patients")
+        conn.execute("UPDATE queue_state SET current_number=0, current_code='A-000', daily_sequence=0, total_called_today=0 WHERE id=1")
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"Error db_reset_all_except_users: {e}")
+
+def check_daily_queue_reset():
+    """Otomatis mereset nomor antrean setiap hari baru saat sistem diakses."""
+    today_str = datetime.now().strftime('%Y-%m-%d')
+    if QUEUE_STATE.get('last_reset_date') != today_str:
+        old_code = QUEUE_STATE.get('current_code', 'A-000')
+        prefix = QUEUE_STATE.get('prefix', 'A')
+        QUEUE_STATE['current_number'] = 0
+        QUEUE_STATE['current_code'] = f"{prefix}-000"
+        QUEUE_STATE['daily_sequence'] = 0
+        QUEUE_STATE['last_reset_date'] = today_str
+        QUEUE_STATE['total_called_today'] = 0
+        db_save_queue_state()
+        
+        log_event = f"Pergantian hari otomatis ({today_str}): Nomor antrean direset dari {old_code} menjadi {QUEUE_STATE['current_code']}"
+        SYSTEM_LOGS.insert(0, {
+            'time': datetime.now().strftime("%d %b %Y %H:%M"),
+            'category': 'Reset Antrean Harian',
+            'event': log_event,
+            'status': 'Otomatis',
+            'status_class': 'green'
+        })
+        db_save_system_log('Reset Antrean Harian', log_event, 'Otomatis', 'green')
+
+# Inisialisasi dan muat seluruh data persisten dari SQLite klinik_skem.db saat aplikasi dimulai
+init_sqlite_db()
+load_all_from_db()
+
+# ==============================================================================
+# HELPER DATA ISOLATION & PRIVASI PASIEN
+# ==============================================================================
+def find_patient_email(patient_name=None, patient_id=None, form_id=None):
+    """Mencari alamat email pemilik akun dari pendaftaran, antrean, profil keluarga, atau USERS_DB."""
+    if form_id:
+        for r in ACTIVE_REGISTRATIONS + REGISTRATION_HISTORY:
+            if (r.get('code') == form_id or r.get('id') == form_id) and r.get('user_email'):
+                return r.get('user_email').strip().lower()
+    if patient_id:
+        for q in QUEUE_LIST:
+            if q.get('patient_id') == patient_id and q.get('patient_email'):
+                return q.get('patient_email').strip().lower()
+        for p in PATIENTS:
+            if p.get('id') == patient_id and p.get('form'):
+                for r in ACTIVE_REGISTRATIONS + REGISTRATION_HISTORY:
+                    if (r.get('code') == p.get('form') or r.get('id') == p.get('form')) and r.get('user_email'):
+                        return r.get('user_email').strip().lower()
+    if patient_name:
+        p_name_lower = patient_name.strip().lower()
+        for p in SAVED_PROFILES.values():
+            if p.get('name', '').strip().lower() == p_name_lower and p.get('user_email'):
+                return p.get('user_email').strip().lower()
+        for r in ACTIVE_REGISTRATIONS + REGISTRATION_HISTORY:
+            if r.get('patient_name', '').strip().lower() == p_name_lower and r.get('user_email'):
+                return r.get('user_email').strip().lower()
+        for u in USERS_DB.values():
+            if u.get('name', '').strip().lower() == p_name_lower and u.get('email'):
+                return u.get('email').strip().lower()
+    return ''
+
+def get_current_patient_scope():
+    """Mengembalikan user, user_email, user_name, accessible_names (set lowercase), my_profiles, dan my_reg_codes untuk akun pasien yang sedang login."""
+    user = session.get('user', {})
+    user_email = (user.get('email') or '').strip().lower()
+    user_name = (user.get('name') or '').strip()
+
+    my_profiles = {}
+    if user_email:
+        my_profiles = {k: v for k, v in SAVED_PROFILES.items() if (v.get('user_email') or '').strip().lower() == user_email}
+
+    accessible_names = set()
+    if user_name:
+        accessible_names.add(user_name.lower())
+    for prof in my_profiles.values():
+        if prof.get('name'):
+            accessible_names.add(prof['name'].strip().lower())
+
+    my_reg_codes = set()
+    for r in REGISTRATION_HISTORY + ACTIVE_REGISTRATIONS:
+        r_email = (r.get('user_email') or '').strip().lower()
+        r_name = (r.get('patient_name') or '').strip().lower()
+        if (r_email and r_email == user_email) or (not r_email and r_name in accessible_names):
+            if r.get('code'):
+                my_reg_codes.add(r['code'])
+            if r.get('id'):
+                my_reg_codes.add(r['id'])
+            if r.get('ref_id'):
+                my_reg_codes.add(r['ref_id'])
+
+    return user, user_email, user_name, accessible_names, my_profiles, my_reg_codes
+
+def is_patient_record(item, user_email, accessible_names, my_reg_codes=None):
+    """Memvalidasi dengan ketat apakah data milik pasien yang sedang login (mencegah data bocor ke akun lain)."""
+    if not user_email:
+        return False
+    item_email = (item.get('user_email') or item.get('patient_email') or '').strip().lower()
+    # 1. Jika item memiliki email, maka email HARUS cocok persis dengan akun pasien
+    if item_email:
+        return item_email == user_email
+    # 2. Jika tidak ada email, cocokkan dengan kode pendaftaran yang dimiliki pasien
+    if my_reg_codes:
+        code = item.get('code') or item.get('id') or item.get('ref_id') or ''
+        if code and code in my_reg_codes:
+            return True
+    # 3. Jika tidak ada email dan tidak ada kode, cocokkan dengan nama pasien / profil keluarga yang dikelola
+    item_name = (item.get('patient_name') or item.get('name') or '').strip().lower()
+    if item_name and item_name in accessible_names:
+        return True
+    return False
 
 # ==============================================================================
 # CONTEXT PROCESSOR (Injeksi global current_user, current_role, faskes2_partners ke template)
@@ -431,13 +1289,17 @@ SYSTEM_LOGS = [
 def inject_user_context():
     check_daily_queue_reset()
     user = session.get('user')
+    pending_actions = len(REQUIRED_ACTIONS)
+    if user and user.get('role') == 'patient':
+        _, u_email, _, acc_names, _, my_codes = get_current_patient_scope()
+        pending_actions = sum(1 for a in REQUIRED_ACTIONS if is_patient_record(a, u_email, acc_names, my_codes))
     return {
         'current_user': user,
         'current_role': user.get('role') if user else None,
         'faskes2_partners': FASKES2_PARTNERS,
         'specialty_clinics': SPECIALTY_CLINICS,
         'queue_state': QUEUE_STATE,
-        'pending_action_count': len(REQUIRED_ACTIONS)
+        'pending_action_count': pending_actions
     }
 
 # ==============================================================================
@@ -625,6 +1487,7 @@ def register():
             'avatar_url': None
         }
         USERS_DB[email] = new_user
+        db_save_user(new_user)
 
         USERS_LIST.append({
             'username': email,
@@ -649,6 +1512,7 @@ def register():
             'relationship': 'Utama',
             'badge': f"Pasien Utama · DEMO-NIK {badge_suffix}"
         }
+        db_save_profile(SAVED_PROFILES['utama_' + new_id])
 
         session['user'] = {
             'id': new_user['id'],
@@ -669,6 +1533,7 @@ def register():
             'status': 'Berhasil',
             'status_class': 'green'
         })
+        db_save_system_log('Autentikasi', f"Pendaftaran akun pasien baru: {name}", 'Berhasil', 'green')
         flash(f"Akun berhasil didaftarkan di Klinik SKEM! Selamat datang, {name}.")
         return redirect(get_role_home_url(role))
 
@@ -883,6 +1748,7 @@ def google_callback():
             'avatar_url': avatar_url or 'https://lh3.googleusercontent.com/a/default-user'
         }
         USERS_DB[email] = user
+        db_save_user(user)
         USERS_LIST.append({
             'username': email,
             'name': name,
@@ -905,6 +1771,7 @@ def google_callback():
                 'relationship': 'Utama',
                 'badge': f"Pasien Utama (Google) · {dummy_nik}"
             }
+            db_save_profile(SAVED_PROFILES['g_' + user_id])
     else:
         # Perbarui profil dengan nama & foto terbaru dari Google jika tersedia
         if name:
@@ -912,6 +1779,7 @@ def google_callback():
         if avatar_url:
             user['avatar_url'] = avatar_url
         user['auth_provider'] = 'google'
+        db_save_user(user)
 
     session['user'] = {
         'id': user['id'],
@@ -932,6 +1800,7 @@ def google_callback():
         'status': 'Berhasil',
         'status_class': 'green'
     })
+    db_save_system_log('Autentikasi Google', f"Masuk via Akun Google ({auth_source}): {user['name']} ({user['email']})", 'Berhasil', 'green')
 
     flash(f"Berhasil masuk dengan akun Google: {user['name']} ({user['email']})!")
     return redirect(get_role_home_url(user['role']))
@@ -959,36 +1828,37 @@ patient_bp = Blueprint('patient', __name__, url_prefix='/patient')
 @patient_bp.route('/')
 @patient_bp.route('/home')
 def home():
-    user = session.get('user', {})
-    user_email = user.get('email', 'pasien@local')
-    user_name = user.get('name', 'Dinda Prameswari')
-
-    # Cari profil milik pengguna
-    my_profiles = {k: v for k, v in SAVED_PROFILES.items() if v.get('user_email') == user_email}
-    if not my_profiles:
-        my_profiles = SAVED_PROFILES
-
-    accessible_names = {user_name}
-    for prof in my_profiles.values():
-        if prof.get('name'):
-            accessible_names.add(prof['name'])
+    user, user_email, user_name, accessible_names, my_profiles, my_reg_codes = get_current_patient_scope()
 
     # Cek rujukan aktif untuk pasien ini
     active_referral = next((
         r for r in REFERRALS
-        if r.get('patient_email') == user_email or r.get('patient_name') in accessible_names
+        if is_patient_record(r, user_email, accessible_names, my_reg_codes)
     ), None)
 
     # Cek resep siap diambil
     my_rx = [
         rx for rx in PRESCRIPTIONS
-        if rx.get('patient_email') == user_email or rx.get('patient_name') in accessible_names
+        if is_patient_record(rx, user_email, accessible_names, my_reg_codes)
     ]
     ready_rx = next((rx for rx in my_rx if rx.get('status') == 'Siap Diambil'), None)
 
+    # Filter pendaftaran aktif & tindakan yang diperlukan hanya untuk akun ini
+    my_active_registrations = [
+        r for r in ACTIVE_REGISTRATIONS
+        if is_patient_record(r, user_email, accessible_names, my_reg_codes)
+    ]
+    my_required_actions = [
+        a for a in REQUIRED_ACTIONS
+        if is_patient_record(a, user_email, accessible_names, my_reg_codes)
+    ]
+
     # Cari nomor antrean pengguna yang aktif
     check_daily_queue_reset()
-    my_q_item = next((q for q in QUEUE_LIST if q.get('patient_name') in accessible_names and q.get('status') not in ('Selesai di Faskes Ini', 'Dirujuk ke Faskes 2')), None)
+    my_q_item = next((
+        q for q in QUEUE_LIST
+        if is_patient_record(q, user_email, accessible_names, my_reg_codes) and q.get('status') not in ('Selesai di Faskes Ini', 'Dirujuk ke Faskes 2')
+    ), None)
     run_code = QUEUE_STATE['current_code']
     run_num = QUEUE_STATE['current_number']
 
@@ -1012,8 +1882,14 @@ def home():
             gap_status = "passed"
     else:
         # Cek apakah kunjungan hari ini sudah selesai atau sedang menunggu verifikasi berkas
-        completed_q = next((q for q in QUEUE_LIST if q.get('patient_name') in accessible_names and q.get('status') in ('Selesai di Faskes Ini', 'Dirujuk ke Faskes 2')), None)
-        pending_reg = next((r for r in ACTIVE_REGISTRATIONS if r.get('status') in ('Menunggu verifikasi', 'Menunggu verifikasi ulang', 'Perlu dilengkapi')), None)
+        completed_q = next((
+            q for q in QUEUE_LIST
+            if is_patient_record(q, user_email, accessible_names, my_reg_codes) and q.get('status') in ('Selesai di Faskes Ini', 'Dirujuk ke Faskes 2')
+        ), None)
+        pending_reg = next((
+            r for r in my_active_registrations
+            if r.get('status') in ('Menunggu verifikasi', 'Menunggu verifikasi ulang', 'Perlu dilengkapi')
+        ), None)
 
         if completed_q:
             my_queue_no = completed_q['queue_no']
@@ -1040,15 +1916,15 @@ def home():
             gap_status = "none"
 
     patient_metrics = {
-        'active_registrations': len(ACTIVE_REGISTRATIONS),
-        'need_action': len(REQUIRED_ACTIONS),
+        'active_registrations': len(my_active_registrations),
+        'need_action': len(my_required_actions),
         'my_queue': my_queue_no,
         'saved_profiles': len(my_profiles)
     }
 
     action_notice = None
-    if REQUIRED_ACTIONS:
-        action_notice = f"{REQUIRED_ACTIONS[0].get('title')} ({REQUIRED_ACTIONS[0].get('code')}): {REQUIRED_ACTIONS[0].get('reason')}"
+    if my_required_actions:
+        action_notice = f"{my_required_actions[0].get('title')} ({my_required_actions[0].get('code')}): {my_required_actions[0].get('reason')}"
 
     return render_template(
         'patient/home.html',
@@ -1059,7 +1935,7 @@ def home():
         queue_gap_text=gap_text,
         gap_status=gap_status,
         queue_state=QUEUE_STATE,
-        active_registrations=ACTIVE_REGISTRATIONS,
+        active_registrations=my_active_registrations,
         action_notice=action_notice,
         ready_rx=ready_rx,
         active_referral=active_referral,
@@ -1070,16 +1946,12 @@ def home():
 def api_queue_status():
     """API untuk pembaruan realtime nomor antrean di portal pasien."""
     check_daily_queue_reset()
-    user = session.get('user', {})
-    user_name = user.get('name', 'Dinda Prameswari')
-    user_email = user.get('email', 'pasien@local')
+    user, user_email, user_name, accessible_names, my_profiles, my_reg_codes = get_current_patient_scope()
 
-    accessible_names = {user_name}
-    for p in SAVED_PROFILES.values():
-        if p.get('user_email') == user_email:
-            accessible_names.add(p.get('name'))
-
-    my_q_item = next((q for q in QUEUE_LIST if q.get('patient_name') in accessible_names and q.get('status') not in ('Selesai di Faskes Ini', 'Dirujuk ke Faskes 2')), None)
+    my_q_item = next((
+        q for q in QUEUE_LIST
+        if is_patient_record(q, user_email, accessible_names, my_reg_codes) and q.get('status') not in ('Selesai di Faskes Ini', 'Dirujuk ke Faskes 2')
+    ), None)
     run_code = QUEUE_STATE['current_code']
     run_num = QUEUE_STATE['current_number']
 
@@ -1102,8 +1974,14 @@ def api_queue_status():
             gap_text = f"Nomor Anda ({my_queue_no}) telah terlewati. Silakan konfirmasi ke loket."
             gap_status = "passed"
     else:
-        completed_q = next((q for q in QUEUE_LIST if q.get('patient_name') in accessible_names and q.get('status') in ('Selesai di Faskes Ini', 'Dirujuk ke Faskes 2')), None)
-        pending_reg = next((r for r in ACTIVE_REGISTRATIONS if r.get('status') in ('Menunggu verifikasi', 'Menunggu verifikasi ulang', 'Perlu dilengkapi')), None)
+        completed_q = next((
+            q for q in QUEUE_LIST
+            if is_patient_record(q, user_email, accessible_names, my_reg_codes) and q.get('status') in ('Selesai di Faskes Ini', 'Dirujuk ke Faskes 2')
+        ), None)
+        pending_reg = next((
+            r for r in ACTIVE_REGISTRATIONS
+            if is_patient_record(r, user_email, accessible_names, my_reg_codes) and r.get('status') in ('Menunggu verifikasi', 'Menunggu verifikasi ulang', 'Perlu dilengkapi')
+        ), None)
 
         if completed_q:
             my_queue_no = completed_q['queue_no']
@@ -1141,16 +2019,29 @@ def api_queue_status():
 
 @patient_bp.route('/register', methods=['GET', 'POST'])
 def register():
-    user = session.get('user', {})
-    user_email = user.get('email', 'pasien@local')
+    user, user_email, user_name, accessible_names, my_profiles, my_reg_codes = get_current_patient_scope()
 
     if request.method == 'POST':
-        patient_name = request.form.get('name', user.get('name', 'Dinda Prameswari')).strip()
+        patient_name = request.form.get('name', user_name or 'Pasien').strip()
         service = request.form.get('service', 'Poli Umum').strip()
         raw_visit_date = request.form.get('visit_date', '')
         visit_date = format_indonesian_date(raw_visit_date)
 
         new_code = f"FF-{len(REGISTRATION_HISTORY) + 155}"
+
+        # Simpan berkas dokumen pendukung jika ada
+        doc_info = None
+        if 'supporting_document' in request.files:
+            file_obj = request.files['supporting_document']
+            if file_obj and file_obj.filename:
+                doc_info = save_uploaded_document(file_obj, prefix=new_code.replace('-', ''))
+
+        doc_url = doc_info['document_url'] if doc_info else None
+        doc_name = doc_info['document_name'] if doc_info else None
+        doc_type = doc_info['document_type'] if doc_info else None
+
+        patient_id = f"P{len(PATIENTS) + 1:03d}"
+        finance_choice = request.form.get('payment_method', 'Mandiri')
 
         new_reg = {
             'clinic': service,
@@ -1159,29 +2050,45 @@ def register():
             'status': 'Menunggu verifikasi',
             'status_class': 'blue',
             'hospital': 'Klinik SKEM',
-            'patient_name': patient_name
+            'patient_name': patient_name,
+            'patient_id': patient_id,
+            'finance': finance_choice,
+            'user_email': user_email,
+            'document_url': doc_url,
+            'document_name': doc_name,
+            'document_type': doc_type
         }
-        patient_id = f"P{len(PATIENTS) + 1:03d}"
         ACTIVE_REGISTRATIONS.insert(0, new_reg)
         REGISTRATION_HISTORY.insert(0, {
             'id': new_code,
+            'code': new_code,
             'date': visit_date,
             'service': service,
             'hospital': 'Klinik SKEM',
             'patient_name': patient_name,
+            'patient_id': patient_id,
+            'finance': finance_choice,
             'status': 'Menunggu verifikasi',
-            'status_class': 'blue'
+            'status_class': 'blue',
+            'user_email': user_email,
+            'document_url': doc_url,
+            'document_name': doc_name,
+            'document_type': doc_type
         })
-        REVIEW_LIST.insert(0, {
+        new_rev = {
             'id': new_code,
             'patient_id': patient_id,
             'patient_name': patient_name,
             'source': 'Online',
             'service': service,
             'readiness': 'Perlu diperiksa',
-            'status_class': 'amber'
-        })
-        PATIENTS.insert(0, {
+            'status_class': 'amber',
+            'document_url': doc_url,
+            'document_name': doc_name,
+            'document_type': doc_type
+        }
+        REVIEW_LIST.insert(0, new_rev)
+        new_pat = {
             'id': patient_id,
             'name': patient_name,
             'phone': user.get('phone', '0812-0000-1182'),
@@ -1189,23 +2096,43 @@ def register():
             'service': service,
             'finance': request.form.get('payment_method', 'Mandiri'),
             'status': 'Menunggu verifikasi',
-            'form': new_code
-        })
+            'form': new_code,
+            'document_url': doc_url,
+            'document_name': doc_name,
+            'document_type': doc_type
+        }
+        PATIENTS.insert(0, new_pat)
+
+        db_save_registration(new_reg)
+        db_save_review(new_rev)
+        db_save_patient(new_pat)
 
         SYSTEM_LOGS.insert(0, {
             'time': datetime.now().strftime("%d %b %Y %H:%M"),
             'category': 'Pendaftaran',
-            'event': f"Pendaftaran {new_code} untuk {patient_name} ({service}) diajukan ke Klinik SKEM",
+            'event': f"Pendaftaran {new_code} untuk {patient_name} ({service}) diajukan ke Klinik SKEM" + (f" [Berkas: {doc_name}]" if doc_name else ""),
             'status': 'Berhasil',
             'status_class': 'green'
         })
+        db_save_system_log('Pendaftaran', f"Pendaftaran {new_code} untuk {patient_name} ({service}) diajukan ke Klinik SKEM", 'Berhasil', 'green')
 
-        flash(f"Pendaftaran {patient_name} untuk {service} di Klinik SKEM berhasil diajukan!")
+        flash(f"Pendaftaran {patient_name} untuk {service} di Klinik SKEM berhasil diajukan!" + (" Dokumen pendukung berhasil diunggah." if doc_name else ""))
         return redirect(url_for('patient.home'))
 
-    my_profiles = {k: v for k, v in SAVED_PROFILES.items() if v.get('user_email') == user_email}
     if not my_profiles:
-        my_profiles = SAVED_PROFILES
+        id_num = user.get('identity_number', '3171000000000001')
+        badge_suffix = f"••••{id_num[-4:]}" if len(id_num) >= 4 else id_num
+        my_profiles = {
+            'utama': {
+                'key': 'utama',
+                'user_email': user_email,
+                'name': user_name or 'Pasien',
+                'identity_number': id_num,
+                'phone': user.get('phone', '0812-0000-0000'),
+                'relationship': 'Utama',
+                'badge': f"Pasien Utama · DEMO-NIK {badge_suffix}"
+            }
+        }
 
     return render_template(
         'patient/register.html',
@@ -1217,10 +2144,12 @@ def register():
 
 @patient_bp.route('/actions')
 def actions():
+    _, user_email, _, accessible_names, _, my_reg_codes = get_current_patient_scope()
+    my_actions = [a for a in REQUIRED_ACTIONS if is_patient_record(a, user_email, accessible_names, my_reg_codes)]
     return render_template(
         'patient/actions.html',
         active_page='actions',
-        required_actions=REQUIRED_ACTIONS,
+        required_actions=my_actions,
         patients=PATIENTS
     )
 
@@ -1229,56 +2158,90 @@ def upload_action():
     code = request.form.get('code', 'FF-0148').strip()
     notes = request.form.get('notes', '').strip()
 
+    # Simpan berkas perbaikan jika diunggah
+    doc_info = None
+    if 'document_file' in request.files:
+        file_obj = request.files['document_file']
+        if file_obj and file_obj.filename:
+            doc_info = save_uploaded_document(file_obj, prefix=f"fix_{code.replace('-', '')}")
+
+    doc_url = doc_info['document_url'] if doc_info else None
+    doc_name = doc_info['document_name'] if doc_info else None
+    doc_type = doc_info['document_type'] if doc_info else None
+
     # 1. Hapus dari REQUIRED_ACTIONS pasien
     REQUIRED_ACTIONS[:] = [a for a in REQUIRED_ACTIONS if a.get('code') != code]
+    db_delete_required_action(code)
 
     # 2. Update status di ACTIVE_REGISTRATIONS pasien
     for reg in ACTIVE_REGISTRATIONS:
         if reg.get('code') == code:
             reg['status'] = 'Menunggu verifikasi ulang'
             reg['status_class'] = 'blue'
+            if doc_url:
+                reg['document_url'] = doc_url
+                reg['document_name'] = doc_name
+                reg['document_type'] = doc_type
+            db_save_registration(reg)
 
     # 3. Update status di REVIEW_LIST petugas klinik
     for r in REVIEW_LIST:
         if r.get('id') == code:
             r['readiness'] = 'Menunggu verifikasi ulang'
             r['status_class'] = 'blue'
+            if doc_url:
+                r['document_url'] = doc_url
+                r['document_name'] = doc_name
+                r['document_type'] = doc_type
+            db_save_review(r)
 
     # 4. Update status di PATIENTS
     for p in PATIENTS:
         if p.get('form') == code:
             p['status'] = 'Menunggu verifikasi ulang'
+            if doc_url:
+                p['document_url'] = doc_url
+                p['document_name'] = doc_name
+                p['document_type'] = doc_type
+            db_save_patient(p)
 
     # 5. Update di REGISTRATION_HISTORY
     for h in REGISTRATION_HISTORY:
         if h.get('id') == code:
             h['status'] = 'Menunggu verifikasi ulang'
             h['status_class'] = 'blue'
+            if doc_url:
+                h['document_url'] = doc_url
+                h['document_name'] = doc_name
+                h['document_type'] = doc_type
+            db_save_registration(h)
 
+    db_update_registration_status(code, 'Menunggu verifikasi ulang', 'blue')
+    db_update_review_status(code, 'Menunggu verifikasi ulang', 'blue')
+
+    op_desc = f"Pasien telah mengunggah perbaikan dokumen untuk verifikasi petugas Klinik SKEM." + (f" Berkas: {doc_name}." if doc_name else "") + (f" Catatan: {notes}" if notes else "")
     OPERATIONAL_HISTORY.insert(0, {
         'title': f"Dokumen {code} diunggah ulang",
-        'desc': f"Pasien telah mengunggah perbaikan dokumen untuk verifikasi petugas Klinik SKEM. {notes}"
+        'desc': op_desc
     })
-    flash(f"Berkas perbaikan untuk {code} berhasil diunggah dan sedang diperiksa ulang oleh petugas Klinik SKEM.")
+    db_save_operational_history(f"Dokumen {code} diunggah ulang", op_desc)
+    flash(f"Berkas perbaikan untuk {code} berhasil disimpan dan dikirim untuk diverifikasi ulang oleh petugas.")
     return redirect(url_for('patient.actions'))
 
 @patient_bp.route('/history')
 def history():
+    _, user_email, _, accessible_names, _, my_reg_codes = get_current_patient_scope()
+    my_history = [h for h in REGISTRATION_HISTORY if is_patient_record(h, user_email, accessible_names, my_reg_codes)]
     return render_template(
         'patient/history.html',
         active_page='history',
-        registration_history=REGISTRATION_HISTORY,
+        registration_history=my_history,
         patients=PATIENTS
     )
 
 @patient_bp.route('/profiles')
 def profiles():
-    user = session.get('user', {})
-    user_email = user.get('email', 'pasien@local')
-    my_profiles = {k: v for k, v in SAVED_PROFILES.items() if v.get('user_email') == user_email}
-    if not my_profiles:
-        my_profiles = SAVED_PROFILES
-
+    _, user_email, _, _, my_profiles, _ = get_current_patient_scope()
     profiles_list = [
         {
             'key': k,
@@ -1337,6 +2300,7 @@ def add_profile():
         'relationship': relationship,
         'badge': badge
     }
+    db_save_profile(SAVED_PROFILES[key])
 
     flash(f"Profil {name} ({relationship}) berhasil ditambahkan ke daftar profil Anda.")
     return redirect(url_for('patient.profiles'))
@@ -1363,6 +2327,7 @@ def edit_profile(profile_key):
             'relationship': relationship,
             'badge': badge
         })
+        db_save_profile(SAVED_PROFILES[profile_key])
         flash(f"Profil {name} berhasil diperbarui.")
     else:
         flash("Profil tidak ditemukan.")
@@ -1372,6 +2337,7 @@ def edit_profile(profile_key):
 def delete_profile(profile_key):
     if profile_key in SAVED_PROFILES:
         deleted = SAVED_PROFILES.pop(profile_key)
+        db_delete_profile(profile_key)
         flash(f"Profil {deleted.get('name', '')} berhasil dihapus.")
     else:
         flash("Profil tidak ditemukan.")
@@ -1379,22 +2345,11 @@ def delete_profile(profile_key):
 
 @patient_bp.route('/prescriptions')
 def prescriptions():
-    user = session.get('user', {})
-    user_email = user.get('email', 'pasien@local')
-    user_name = user.get('name', 'Dinda Prameswari')
-
-    my_profiles = {k: v for k, v in SAVED_PROFILES.items() if v.get('user_email') == user_email}
-    accessible_names = {user_name}
-    for prof in my_profiles.values():
-        if prof.get('name'):
-            accessible_names.add(prof['name'])
-
+    _, user_email, _, accessible_names, _, my_reg_codes = get_current_patient_scope()
     my_prescriptions = [
         rx for rx in PRESCRIPTIONS
-        if rx.get('patient_email') == user_email or rx.get('patient_name') in accessible_names
+        if is_patient_record(rx, user_email, accessible_names, my_reg_codes)
     ]
-    if not my_prescriptions:
-        my_prescriptions = PRESCRIPTIONS
 
     ready_count = sum(1 for rx in my_prescriptions if rx.get('status') == 'Siap Diambil')
     prep_count = sum(1 for rx in my_prescriptions if rx.get('status') == 'Sedang Diracik')
@@ -1421,10 +2376,13 @@ def confirm_prescription(rx_id):
     if matched:
         matched['status'] = 'Sudah Diambil'
         matched['status_class'] = 'blue'
+        db_update_prescription_status(rx_id, 'Sudah Diambil', 'blue')
+        op_desc = f'Pasien {user_name} mengonfirmasi pengambilan obat di Loket Farmasi Klinik SKEM.'
         OPERATIONAL_HISTORY.insert(0, {
             'title': f'{rx_id} diambil pasien',
-            'desc': f'Pasien {user_name} mengonfirmasi pengambilan obat di Loket Farmasi Klinik SKEM.'
+            'desc': op_desc
         })
+        db_save_operational_history(f'{rx_id} diambil pasien', op_desc)
         flash(f"Konfirmasi berhasil! Resep {rx_id} telah dicatat sudah Anda ambil.")
     else:
         flash("Resep tidak ditemukan.")
@@ -1472,6 +2430,7 @@ def confirm_review(form_id):
     if matched:
         matched['readiness'] = 'Terverifikasi'
         matched['status_class'] = 'green'
+        db_update_review_status(form_id, 'Terverifikasi', 'green')
 
         existing_q = any(q['patient_id'] == matched['patient_id'] for q in QUEUE_LIST)
         new_q_no = None
@@ -1479,16 +2438,21 @@ def confirm_review(form_id):
             check_daily_queue_reset()
             QUEUE_STATE['daily_sequence'] += 1
             new_q_no = f"{QUEUE_STATE['prefix']}-{QUEUE_STATE['daily_sequence']:03d}"
-            QUEUE_LIST.append({
+            target_email = find_patient_email(patient_name=matched['patient_name'], patient_id=matched['patient_id'], form_id=form_id)
+            q_item = {
                 'queue_no': new_q_no,
                 'patient_id': matched['patient_id'],
                 'patient_name': matched['patient_name'],
+                'patient_email': target_email,
                 'source': matched.get('source', 'Online'),
                 'service': matched.get('service', 'Poli Umum'),
                 'status': 'Menunggu',
                 'status_class': 'blue',
                 'can_call': True
-            })
+            }
+            QUEUE_LIST.append(q_item)
+            db_save_queue(q_item)
+            db_save_queue_state()
 
         # 1. Update status di ACTIVE_REGISTRATIONS pasien
         for reg in ACTIVE_REGISTRATIONS:
@@ -1500,6 +2464,7 @@ def confirm_review(form_id):
         for p in PATIENTS:
             if p.get('form') == form_id or p.get('id') == matched['patient_id']:
                 p['status'] = 'Terverifikasi'
+                db_save_patient(p)
 
         # 3. Update status di REGISTRATION_HISTORY
         for h in REGISTRATION_HISTORY:
@@ -1507,13 +2472,18 @@ def confirm_review(form_id):
                 h['status'] = 'Terverifikasi (Masuk Antrean)'
                 h['status_class'] = 'green'
 
+        db_update_registration_status(form_id, 'Terverifikasi (Masuk Antrean)', 'green')
+
         # 4. Hapus dari REQUIRED_ACTIONS jika ada
         REQUIRED_ACTIONS[:] = [a for a in REQUIRED_ACTIONS if a.get('code') != form_id]
+        db_delete_required_action(form_id)
 
+        op_desc = f'Kelengkapan administrasi {matched["patient_name"]} dinyatakan lengkap oleh petugas Klinik SKEM.'
         OPERATIONAL_HISTORY.insert(0, {
             'title': f'{form_id} dikonfirmasi',
-            'desc': f'Kelengkapan administrasi {matched["patient_name"]} dinyatakan lengkap oleh petugas Klinik SKEM.'
+            'desc': op_desc
         })
+        db_save_operational_history(f'{form_id} dikonfirmasi', op_desc)
         flash(f"Formulir {form_id} ({matched['patient_name']}) berhasil diverifikasi & masuk ke antrean!")
     else:
         flash(f"Formulir {form_id} tidak ditemukan.")
@@ -1532,20 +2502,39 @@ def request_fix(form_id):
         matched['readiness'] = 'Perlu perbaikan'
         matched['status_class'] = 'amber'
         matched['reason'] = fix_reason
+        db_update_review_status(form_id, 'Perlu perbaikan', 'amber', reason=fix_reason)
+
+    doc_url = matched.get('document_url') if matched else None
+    doc_name = matched.get('document_name') if matched else None
+    doc_type = matched.get('document_type') if matched else None
 
     # 1. Tambahkan atau update di REQUIRED_ACTIONS agar muncul di portal pasien
+    target_email = find_patient_email(patient_name=patient_name, patient_id=patient_id, form_id=form_id)
     action_item = next((a for a in REQUIRED_ACTIONS if a.get('code') == form_id), None)
     if not action_item:
-        REQUIRED_ACTIONS.insert(0, {
+        new_act = {
             'code': form_id,
             'title': 'Unggah Ulang Berkas / Identitas',
             'service': service,
             'patient_name': patient_name,
             'patient_id': patient_id,
-            'reason': fix_reason
-        })
+            'reason': fix_reason,
+            'user_email': target_email,
+            'document_url': doc_url,
+            'document_name': doc_name,
+            'document_type': doc_type
+        }
+        REQUIRED_ACTIONS.insert(0, new_act)
+        db_save_required_action(new_act)
     else:
         action_item['reason'] = fix_reason
+        if target_email:
+            action_item['user_email'] = target_email
+        if doc_url and not action_item.get('document_url'):
+            action_item['document_url'] = doc_url
+            action_item['document_name'] = doc_name
+            action_item['document_type'] = doc_type
+        db_save_required_action(action_item)
 
     # 2. Update status di ACTIVE_REGISTRATIONS pasien
     for reg in ACTIVE_REGISTRATIONS:
@@ -1557,6 +2546,7 @@ def request_fix(form_id):
     for p in PATIENTS:
         if p.get('form') == form_id or p.get('id') == patient_id:
             p['status'] = 'Perlu perbaikan berkas'
+            db_save_patient(p)
 
     # 4. Update status di REGISTRATION_HISTORY
     for h in REGISTRATION_HISTORY:
@@ -1564,17 +2554,24 @@ def request_fix(form_id):
             h['status'] = 'Perlu dilengkapi'
             h['status_class'] = 'amber'
 
+    db_update_registration_status(form_id, 'Perlu dilengkapi', 'amber')
+
+    op_desc = f'Petugas meminta perbaikan dokumen untuk {patient_name}: {fix_reason}'
     OPERATIONAL_HISTORY.insert(0, {
         'title': f'Permintaan perbaikan berkas {form_id}',
-        'desc': f'Petugas meminta perbaikan dokumen untuk {patient_name}: {fix_reason}'
+        'desc': op_desc
     })
+    db_save_operational_history(f'Permintaan perbaikan berkas {form_id}', op_desc)
+
+    log_evt = f"Permintaan perbaikan berkas {form_id} untuk {patient_name}"
     SYSTEM_LOGS.insert(0, {
         'time': datetime.now().strftime("%d %b %Y %H:%M"),
         'category': 'Verifikasi Berkas',
-        'event': f"Permintaan perbaikan berkas {form_id} untuk {patient_name}",
+        'event': log_evt,
         'status': 'Perlu Perbaikan',
         'status_class': 'amber'
     })
+    db_save_system_log('Verifikasi Berkas', log_evt, 'Perlu Perbaikan', 'amber')
 
     flash(f"Permintaan perbaikan berkas untuk {form_id} ({patient_name}) telah dikirimkan ke pasien.")
     return redirect(url_for('facility.review'))
@@ -1608,6 +2605,7 @@ def next_queue():
         QUEUE_STATE['current_number'] = num
         QUEUE_STATE['total_called_today'] += 1
         matched_patient = target_item['patient_name']
+        db_update_queue_status(new_code, 'Dipanggil ke Loket 1', 'green', can_call=1)
     else:
         QUEUE_STATE['current_number'] += 1
         new_code = f"{QUEUE_STATE['prefix']}-{QUEUE_STATE['current_number']:03d}"
@@ -1619,7 +2617,10 @@ def next_queue():
                 q['status'] = 'Dipanggil ke Loket 1'
                 q['status_class'] = 'green'
                 matched_patient = q['patient_name']
+                db_update_queue_status(new_code, 'Dipanggil ke Loket 1', 'green', can_call=1)
                 break
+
+    db_save_queue_state()
 
     desc = f"Nomor antrean {new_code} dipanggil ke {QUEUE_STATE['counter_name']}"
     if matched_patient:
@@ -1629,6 +2630,8 @@ def next_queue():
         'title': f'{new_code} dipanggil',
         'desc': desc
     })
+    db_save_operational_history(f'{new_code} dipanggil', desc)
+
     SYSTEM_LOGS.insert(0, {
         'time': datetime.now().strftime("%d %b %Y %H:%M"),
         'category': 'Panggilan Antrean',
@@ -1636,6 +2639,7 @@ def next_queue():
         'status': 'Dipanggil',
         'status_class': 'green'
     })
+    db_save_system_log('Panggilan Antrean', desc, 'Dipanggil', 'green')
 
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json:
         return {
@@ -1657,6 +2661,7 @@ def call_queue(queue_no):
     if num > 0:
         QUEUE_STATE['current_number'] = num
     QUEUE_STATE['total_called_today'] += 1
+    db_save_queue_state()
 
     matched_patient = None
     for q in QUEUE_LIST:
@@ -1664,6 +2669,7 @@ def call_queue(queue_no):
             q['status'] = 'Dipanggil ke Loket 1'
             q['status_class'] = 'green'
             matched_patient = q['patient_name']
+            db_update_queue_status(queue_no, 'Dipanggil ke Loket 1', 'green', can_call=1)
             break
 
     desc = f"Nomor antrean {queue_no} dipanggil ke {QUEUE_STATE['counter_name']}"
@@ -1674,6 +2680,8 @@ def call_queue(queue_no):
         'title': f'{queue_no} dipanggil',
         'desc': desc
     })
+    db_save_operational_history(f'{queue_no} dipanggil', desc)
+
     SYSTEM_LOGS.insert(0, {
         'time': datetime.now().strftime("%d %b %Y %H:%M"),
         'category': 'Panggilan Antrean',
@@ -1681,6 +2689,7 @@ def call_queue(queue_no):
         'status': 'Dipanggil',
         'status_class': 'green'
     })
+    db_save_system_log('Panggilan Antrean', desc, 'Dipanggil', 'green')
 
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json:
         return {
@@ -1700,10 +2709,13 @@ def admit_queue(queue_no):
             q['status'] = 'Menunggu'
             q['status_class'] = 'blue'
             q['can_call'] = True
+            db_update_queue_status(queue_no, 'Menunggu', 'blue', can_call=1)
+            op_desc = f'Nomor antrean {queue_no} ({q["patient_name"]}) siap dipanggil di loket Klinik SKEM.'
             OPERATIONAL_HISTORY.insert(0, {
                 'title': f'{queue_no} dimasukkan ke antrean aktif',
-                'desc': f'Nomor antrean {queue_no} ({q["patient_name"]}) siap dipanggil di loket Klinik SKEM.'
+                'desc': op_desc
             })
+            db_save_operational_history(f'{queue_no} dimasukkan ke antrean aktif', op_desc)
             flash(f"Nomor antrean {queue_no} siap dipanggil.")
             break
     return redirect(url_for('facility.queue'))
@@ -1724,6 +2736,7 @@ def complete_visit():
             q['status'] = 'Selesai di Faskes Ini'
             q['status_class'] = 'green'
             q['can_call'] = False
+            db_update_queue_status(q['queue_no'], 'Selesai di Faskes Ini', 'green', can_call=0)
             if not patient_name:
                 patient_name = q['patient_name']
 
@@ -1731,6 +2744,7 @@ def complete_visit():
     for p in PATIENTS:
         if p['id'] == patient_id or (patient_name and p['name'].lower() == patient_name.lower()):
             p['status'] = 'Selesai di Faskes Ini'
+            db_save_patient(p)
             if not patient_name:
                 patient_name = p['name']
 
@@ -1739,6 +2753,7 @@ def complete_visit():
         if (form_id and r['id'] == form_id) or (patient_id and r['patient_id'] == patient_id):
             r['readiness'] = 'Selesai di Faskes Ini'
             r['status_class'] = 'green'
+            db_update_review_status(r['id'], 'Selesai di Faskes Ini', 'green')
 
     # 4. Update pada Pendaftaran Aktif & Riwayat (Cegah duplikat 2x)
     now_date = format_indonesian_date(datetime.now())
@@ -1757,29 +2772,41 @@ def complete_visit():
         matched_h['status'] = 'Selesai di Faskes Ini'
         matched_h['status_class'] = 'green'
         matched_h['date'] = now_date
+        db_update_registration_status(matched_h.get('code') or matched_h.get('id'), 'Selesai di Faskes Ini', 'green')
     else:
-        REGISTRATION_HISTORY.insert(0, {
-            'id': form_id or f"FF-{len(REGISTRATION_HISTORY)+155}",
+        new_h_code = form_id or f"FF-{len(REGISTRATION_HISTORY)+155}"
+        target_email = find_patient_email(patient_name=patient_name, patient_id=patient_id, form_id=form_id)
+        new_h = {
+            'id': new_h_code,
+            'code': new_h_code,
             'date': now_date,
             'service': 'Poli Umum',
             'hospital': 'Klinik SKEM',
             'patient_name': patient_name,
             'status': 'Selesai di Faskes Ini',
-            'status_class': 'green'
-        })
+            'status_class': 'green',
+            'user_email': target_email
+        }
+        REGISTRATION_HISTORY.insert(0, new_h)
+        db_save_registration(new_h)
 
     # 5. Catat ke Riwayat Operasional & Log Sistem
+    op_desc = f'Kunjungan pasien {patient_name} dinyatakan Selesai di Faskes Ini oleh petugas Klinik SKEM.'
     OPERATIONAL_HISTORY.insert(0, {
         'title': f'Kunjungan {patient_name or "Pasien"} diselesaikan',
-        'desc': f'Kunjungan pasien {patient_name} dinyatakan Selesai di Faskes Ini oleh petugas Klinik SKEM.'
+        'desc': op_desc
     })
+    db_save_operational_history(f'Kunjungan {patient_name or "Pasien"} diselesaikan', op_desc)
+
+    log_evt = f"Kunjungan pasien {patient_name} selesai di Faskes ini"
     SYSTEM_LOGS.insert(0, {
         'time': datetime.now().strftime("%d %b %Y %H:%M"),
         'category': 'Pelayanan Pasien',
-        'event': f"Kunjungan pasien {patient_name} selesai di Faskes ini",
+        'event': log_evt,
         'status': 'Selesai',
         'status_class': 'green'
     })
+    db_save_system_log('Pelayanan Pasien', log_evt, 'Selesai', 'green')
 
     flash(f"Status kunjungan pasien {patient_name} berhasil diubah menjadi: Selesai di Faskes Ini.")
     return redirect(request.referrer or url_for('facility.queue'))
@@ -1797,17 +2824,20 @@ def refer_visit():
     queue_no = request.form.get('queue_no', '').strip()
     form_id = request.form.get('form_id', '').strip()
 
+    # Cari email pasien yang sebenarnya (bukan hardcoded pasien@local)
+    target_email = find_patient_email(patient_name=patient_name, patient_id=patient_id, form_id=form_id)
+
     # Buat nomor rujukan otomatis
     ref_id = f"SRJ-2026-{len(REFERRALS) + 1:03d}"
     now_date = format_indonesian_date(datetime.now())
     now_time = datetime.now().strftime("%H:%M")
 
-    # 1. Tambahkan ke data in-memory REFERRALS
+    # 1. Tambahkan ke data in-memory REFERRALS & DB
     new_referral = {
         'id': ref_id,
         'patient_id': patient_id,
         'patient_name': patient_name,
-        'patient_email': 'pasien@local',
+        'patient_email': target_email,
         'source_faskes': 'Klinik SKEM',
         'target_faskes': target_faskes,
         'target_clinic': target_clinic,
@@ -1819,6 +2849,7 @@ def refer_visit():
         'status_class': 'purple'
     }
     REFERRALS.insert(0, new_referral)
+    db_save_referral(new_referral)
 
     # 2. Update status pada Antrean (QUEUE_LIST)
     for q in QUEUE_LIST:
@@ -1826,6 +2857,7 @@ def refer_visit():
             q['status'] = 'Dirujuk ke Faskes 2'
             q['status_class'] = 'purple'
             q['can_call'] = False
+            db_update_queue_status(q['queue_no'], 'Dirujuk ke Faskes 2', 'purple', can_call=0)
 
     # 3. Update status pada Data Pasien (PATIENTS)
     for p in PATIENTS:
@@ -1833,12 +2865,14 @@ def refer_visit():
             p['status'] = 'Dirujuk ke Faskes 2'
             p['faskes2'] = target_faskes
             p['ref_id'] = ref_id
+            db_save_patient(p)
 
     # 4. Update status pada Review (REVIEW_LIST)
     for r in REVIEW_LIST:
         if (form_id and r['id'] == form_id) or (patient_id and r['patient_id'] == patient_id):
             r['readiness'] = 'Dirujuk ke Faskes 2'
             r['status_class'] = 'purple'
+            db_update_review_status(r['id'], 'Dirujuk ke Faskes 2', 'purple')
 
     # 5. Update pada Pendaftaran Aktif Pasien (Cegah duplikat)
     found_active = False
@@ -1851,9 +2885,10 @@ def refer_visit():
             reg['target_clinic'] = target_clinic
             reg['ref_id'] = ref_id
             found_active = True
+            db_save_registration(reg)
             break
     if not found_active:
-        ACTIVE_REGISTRATIONS.insert(0, {
+        active_item = {
             'clinic': target_clinic,
             'date': now_date,
             'code': ref_id,
@@ -1863,8 +2898,11 @@ def refer_visit():
             'target_faskes': target_faskes,
             'target_clinic': target_clinic,
             'patient_name': patient_name,
-            'ref_id': ref_id
-        })
+            'ref_id': ref_id,
+            'user_email': target_email
+        }
+        ACTIVE_REGISTRATIONS.insert(0, active_item)
+        db_save_registration(active_item)
 
     # 6. Update pada Riwayat Pendaftaran Pasien (Cegah duplikat 2x)
     matched_h = None
@@ -1881,9 +2919,13 @@ def refer_visit():
         matched_h['target_clinic'] = target_clinic
         matched_h['ref_id'] = ref_id
         matched_h['date'] = now_date
+        if target_email and not matched_h.get('user_email'):
+            matched_h['user_email'] = target_email
+        db_save_registration(matched_h)
     else:
-        REGISTRATION_HISTORY.insert(0, {
+        new_h = {
             'id': ref_id,
+            'code': ref_id,
             'date': now_date,
             'service': target_clinic,
             'hospital': f"{target_faskes} (Rujukan)",
@@ -1892,23 +2934,30 @@ def refer_visit():
             'target_faskes': target_faskes,
             'target_clinic': target_clinic,
             'patient_name': patient_name,
-            'ref_id': ref_id
-        })
+            'ref_id': ref_id,
+            'user_email': target_email
+        }
+        REGISTRATION_HISTORY.insert(0, new_h)
+        db_save_registration(new_h)
 
     # 7. Tambahkan ke Timeline Riwayat Operasional
+    op_desc = f'Pasien {patient_name} dirujuk ke {target_faskes} ({target_clinic}). Catatan: {notes[:80]}'
     OPERATIONAL_HISTORY.insert(0, {
         'title': f'Rujukan {ref_id} diterbitkan',
-        'desc': f'Pasien {patient_name} dirujuk ke {target_faskes} ({target_clinic}). Catatan: {notes[:80]}'
+        'desc': op_desc
     })
+    db_save_operational_history(f'Rujukan {ref_id} diterbitkan', op_desc)
 
     # 8. Catat aktivitas ke Log Sistem (sesuai format Requirement 3)
+    log_evt = f"Data rujukan pasien {patient_name} berhasil dikirim ke {target_faskes}"
     SYSTEM_LOGS.insert(0, {
         'time': datetime.now().strftime("%d %b %Y %H:%M"),
         'category': 'Rujukan Faskes 2',
-        'event': f"Data rujukan pasien {patient_name} berhasil dikirim ke {target_faskes}",
+        'event': log_evt,
         'status': 'Terkirim',
         'status_class': 'green'
     })
+    db_save_system_log('Rujukan Faskes 2', log_evt, 'Terkirim', 'green')
 
     flash(f"Data & berkas rujukan {patient_name} berhasil dikirim ke {target_faskes} ({target_clinic}) - No. Rujukan: {ref_id}!")
     return redirect(request.referrer or url_for('facility.queue'))
@@ -1924,7 +2973,7 @@ def walkin():
         new_queue_num = f"{QUEUE_STATE['prefix']}-{QUEUE_STATE['daily_sequence']:03d}"
         p_id = f"P{len(PATIENTS) + 1:03d}"
 
-        PATIENTS.append({
+        new_pat = {
             'id': p_id,
             'name': patient_name,
             'phone': '0812-0000-0000',
@@ -1933,9 +2982,11 @@ def walkin():
             'finance': 'Mandiri',
             'status': 'Terdaftar',
             'form': new_queue_num
-        })
+        }
+        PATIENTS.append(new_pat)
+        db_save_patient(new_pat)
 
-        QUEUE_LIST.append({
+        new_q = {
             'queue_no': new_queue_num,
             'patient_id': p_id,
             'patient_name': patient_name,
@@ -1944,12 +2995,17 @@ def walkin():
             'status': 'Terdaftar',
             'status_class': '',
             'can_call': True
-        })
+        }
+        QUEUE_LIST.append(new_q)
+        db_save_queue(new_q)
+        db_save_queue_state()
 
+        op_desc = f'Pasien walk-in {patient_name} mendaftar di {service} Klinik SKEM.'
         OPERATIONAL_HISTORY.insert(0, {
             'title': f'{new_queue_num} walk-in didaftarkan',
-            'desc': f'Pasien walk-in {patient_name} mendaftar di {service} Klinik SKEM.'
+            'desc': op_desc
         })
+        db_save_operational_history(f'{new_queue_num} walk-in didaftarkan', op_desc)
 
         flash(f"Pasien walk-in {patient_name} berhasil didaftarkan ke antrean {new_queue_num} Klinik SKEM.")
         return redirect(url_for('facility.queue'))
@@ -2007,23 +3063,27 @@ def create_prescription():
 
     patient_id = "P001"
     patient_name = "Dinda Prameswari"
-    patient_email = "pasien@local"
+    patient_email = ""
 
     if custom_patient_name:
         patient_name = custom_patient_name
         patient_id = f"P{abs(hash(patient_name)) % 900 + 100:03d}"
-        patient_email = "pasien@local"
+        patient_email = find_patient_email(patient_name=patient_name, patient_id=patient_id)
     elif '|' in patient_choice:
         parts = patient_choice.split('|')
         patient_id = parts[0]
         patient_name = parts[1]
-        patient_email = parts[2] if len(parts) > 2 else "pasien@local"
+        patient_email = parts[2] if len(parts) > 2 and parts[2].strip() else find_patient_email(patient_name=patient_name, patient_id=patient_id)
     elif patient_choice:
         patient_name = patient_choice
         for p in PATIENTS:
             if p['name'].lower() == patient_name.lower():
                 patient_id = p['id']
                 break
+        patient_email = find_patient_email(patient_name=patient_name, patient_id=patient_id)
+
+    if not patient_email:
+        patient_email = find_patient_email(patient_name=patient_name, patient_id=patient_id)
 
     med_names = request.form.getlist('med_name[]')
     med_dosages = request.form.getlist('med_dosage[]')
@@ -2074,11 +3134,14 @@ def create_prescription():
         'medications': medications
     }
     PRESCRIPTIONS.insert(0, new_rx)
+    db_save_prescription(new_rx)
 
+    op_desc = f'Petugas Klinik menginput resep {new_rx_id} untuk pasien {patient_name} ({clinic}) - status: {status}.'
     OPERATIONAL_HISTORY.insert(0, {
         'title': f'{new_rx_id} diterbitkan',
-        'desc': f'Petugas Klinik menginput resep {new_rx_id} untuk pasien {patient_name} ({clinic}) - status: {status}.'
+        'desc': op_desc
     })
+    db_save_operational_history(f'{new_rx_id} diterbitkan', op_desc)
 
     flash(f"Resep {new_rx_id} untuk {patient_name} berhasil diterbitkan ke farmasi & akun pasien!")
     return redirect(url_for('facility.prescriptions'))
@@ -2092,22 +3155,28 @@ def update_prescription_status(rx_id, new_status):
             matched['status'] = 'Siap Diambil'
             matched['status_class'] = 'green'
             flash(f"Resep {rx_id} ({matched['patient_name']}) telah ditandai Siap Diambil di {matched['counter']}!")
+            op_desc = f'Obat untuk {matched["patient_name"]} telah selesai diracik dan siap diambil di {matched["counter"]}.'
             OPERATIONAL_HISTORY.insert(0, {
                 'title': f'{rx_id} siap diambil',
-                'desc': f'Obat untuk {matched["patient_name"]} telah selesai diracik dan siap diambil di {matched["counter"]}.'
+                'desc': op_desc
             })
+            db_save_operational_history(f'{rx_id} siap diambil', op_desc)
         elif new_status == 'dispensed':
             matched['status'] = 'Sudah Diambil'
             matched['status_class'] = 'blue'
             flash(f"Resep {rx_id} ({matched['patient_name']}) telah diserahkan ke pasien!")
+            op_desc = f'Obat {rx_id} telah diserahkan ke {matched["patient_name"]}.'
             OPERATIONAL_HISTORY.insert(0, {
                 'title': f'{rx_id} diserahkan',
-                'desc': f'Obat {rx_id} telah diserahkan ke {matched["patient_name"]}.'
+                'desc': op_desc
             })
+            db_save_operational_history(f'{rx_id} diserahkan', op_desc)
         elif new_status == 'prep':
             matched['status'] = 'Sedang Diracik'
             matched['status_class'] = 'amber'
             flash(f"Resep {rx_id} dikembalikan ke status Sedang Diracik.")
+
+        db_update_prescription_status(rx_id, matched['status'], matched['status_class'])
     else:
         flash(f"Resep {rx_id} tidak ditemukan.")
 
@@ -2122,17 +3191,25 @@ def delete_prescription(rx_id):
     if matched:
         p_name = matched.get('patient_name', 'Pasien')
         PRESCRIPTIONS[:] = [rx for rx in PRESCRIPTIONS if rx['id'] != rx_id]
+        db_delete_prescription(rx_id)
+
+        op_desc = f'Resep {rx_id} untuk {p_name} telah dihapus dari sistem oleh petugas farmasi.'
         OPERATIONAL_HISTORY.insert(0, {
             'title': f'{rx_id} dihapus',
-            'desc': f'Resep {rx_id} untuk {p_name} telah dihapus dari sistem oleh petugas farmasi.'
+            'desc': op_desc
         })
+        db_save_operational_history(f'{rx_id} dihapus', op_desc)
+
+        log_evt = f"Penghapusan resep {rx_id} ({p_name})"
         SYSTEM_LOGS.insert(0, {
             'time': datetime.now().strftime("%d %b %Y %H:%M"),
             'category': 'Resep Obat',
-            'event': f"Penghapusan resep {rx_id} ({p_name})",
+            'event': log_evt,
             'status': 'Dihapus',
             'status_class': 'amber'
         })
+        db_save_system_log('Resep Obat', log_evt, 'Dihapus', 'amber')
+
         flash(f"Resep {rx_id} untuk {p_name} berhasil dihapus dari daftar farmasi.")
     else:
         flash(f"Resep {rx_id} tidak ditemukan.")
@@ -2194,14 +3271,17 @@ def edit_queue():
     QUEUE_STATE['current_number'] = num
     if counter_name:
         QUEUE_STATE['counter_name'] = counter_name
+    db_save_queue_state()
 
+    log_evt = f"Admin Sistem mengubah nomor antrean berjalan dari {old_code} menjadi {new_code}"
     SYSTEM_LOGS.insert(0, {
         'time': datetime.now().strftime("%d %b %Y %H:%M"),
         'category': 'Manajemen Antrean',
-        'event': f"Admin Sistem mengubah nomor antrean berjalan dari {old_code} menjadi {new_code}",
+        'event': log_evt,
         'status': 'Diperbarui',
         'status_class': 'green'
     })
+    db_save_system_log('Manajemen Antrean', log_evt, 'Diperbarui', 'green')
     flash(f"Nomor antrean berjalan klinik berhasil diubah menjadi {new_code}!")
     return redirect(url_for('system.dashboard'))
 
@@ -2221,14 +3301,17 @@ def reset_queue():
     QUEUE_STATE['daily_sequence'] = start_num
     QUEUE_STATE['last_reset_date'] = datetime.now().strftime('%Y-%m-%d')
     QUEUE_STATE['total_called_today'] = 0
+    db_save_queue_state()
 
+    log_evt = f"Admin Sistem mereset nomor antrean klinik hari ini menjadi {QUEUE_STATE['current_code']} (sebelumnya {old_code})"
     SYSTEM_LOGS.insert(0, {
         'time': datetime.now().strftime("%d %b %Y %H:%M"),
         'category': 'Manajemen Antrean',
-        'event': f"Admin Sistem mereset nomor antrean klinik hari ini menjadi {QUEUE_STATE['current_code']} (sebelumnya {old_code})",
+        'event': log_evt,
         'status': 'Direset',
         'status_class': 'green'
     })
+    db_save_system_log('Manajemen Antrean', log_evt, 'Direset', 'green')
     flash(f"Nomor antrean klinik berhasil direset ke {QUEUE_STATE['current_code']} untuk hari ini.")
     return redirect(url_for('system.dashboard'))
 
@@ -2238,12 +3321,24 @@ def facilities():
         'system/facilities.html',
         active_page='facilities',
         requirements=REQUIREMENTS,
-        patients=PATIENTS,
-        faskes2_partners=FASKES2_PARTNERS
+        patients=PATIENTS
     )
 
+@system_bp.route('/partners')
+def partners():
+    return render_template(
+        'system/partners.html',
+        active_page='partners',
+        faskes2_partners=FASKES2_PARTNERS,
+        patients=PATIENTS
+    )
+
+@system_bp.route('/faskes2')
+def faskes2_alias():
+    return redirect(url_for('system.partners'))
+
 # ------------------------------------------------------------------------------
-# FITUR BARU: TAMBAH MITRA FASKES TINGKAT 2
+# FITUR MANAJEMEN MITRA FASKES TINGKAT 2
 # ------------------------------------------------------------------------------
 @system_bp.route('/faskes2/add', methods=['POST'])
 def add_faskes2():
@@ -2255,7 +3350,7 @@ def add_faskes2():
 
     if name:
         new_id = f"FK2-{len(FASKES2_PARTNERS) + 1:02d}"
-        FASKES2_PARTNERS.append({
+        new_partner = {
             'id': new_id,
             'name': name,
             'type': f_type,
@@ -2263,18 +3358,47 @@ def add_faskes2():
             'phone': phone,
             'status': status,
             'status_class': 'green' if status == 'Aktif' else 'amber'
-        })
+        }
+        FASKES2_PARTNERS.append(new_partner)
+        db_save_faskes2_partner(new_partner)
 
+        log_evt = f"Mitra Faskes Tingkat 2 baru ditambahkan: {name} ({city})"
         SYSTEM_LOGS.insert(0, {
             'time': datetime.now().strftime("%d %b %Y %H:%M"),
             'category': 'Konfigurasi Faskes 2',
-            'event': f"Mitra Faskes Tingkat 2 baru ditambahkan: {name} ({city})",
+            'event': log_evt,
             'status': 'Berhasil',
             'status_class': 'green'
         })
+        db_save_system_log('Konfigurasi Faskes 2', log_evt, 'Berhasil', 'green')
 
         flash(f"Mitra Faskes Rujukan {name} ({new_id}) berhasil ditambahkan ke sistem!")
-    return redirect(url_for('system.facilities'))
+    return redirect(url_for('system.partners'))
+
+@system_bp.route('/faskes2/edit/<partner_id>', methods=['POST'])
+def edit_faskes2(partner_id):
+    p = next((x for x in FASKES2_PARTNERS if x['id'] == partner_id), None)
+    if p:
+        p['name'] = request.form.get('name', p['name']).strip()
+        p['type'] = request.form.get('type', p['type']).strip()
+        p['city'] = request.form.get('city', p['city']).strip()
+        p['phone'] = request.form.get('phone', p['phone']).strip()
+        status = request.form.get('status', p['status']).strip()
+        p['status'] = status
+        p['status_class'] = 'green' if status == 'Aktif' else 'amber'
+
+        db_save_faskes2_partner(p)
+        flash(f"Data mitra faskes {p['name']} ({partner_id}) berhasil diperbarui!")
+    return redirect(url_for('system.partners'))
+
+@system_bp.route('/faskes2/delete/<partner_id>', methods=['POST'])
+def delete_faskes2(partner_id):
+    p = next((x for x in FASKES2_PARTNERS if x['id'] == partner_id), None)
+    name = p['name'] if p else partner_id
+    FASKES2_PARTNERS[:] = [x for x in FASKES2_PARTNERS if x['id'] != partner_id]
+    db_delete_faskes2_partner(partner_id)
+    flash(f"Mitra Faskes Rujukan {name} ({partner_id}) berhasil dihapus!")
+    return redirect(url_for('system.partners'))
 
 @system_bp.route('/facilities/add', methods=['POST'])
 def add_facility_req():
@@ -2284,20 +3408,25 @@ def add_facility_req():
     status = request.form.get('status', 'Aktif').strip()
 
     if clinic and reqs:
-        REQUIREMENTS.append({
+        new_req = {
             'clinic': clinic,
             'reqs': reqs,
             'mandatory': mandatory,
             'status': status,
             'status_class': 'green' if status == 'Aktif' else 'amber'
-        })
+        }
+        REQUIREMENTS.append(new_req)
+        db_save_requirement(new_req)
+
+        log_evt = f"Persyaratan administrasi {clinic} berhasil ditambahkan di Klinik SKEM"
         SYSTEM_LOGS.insert(0, {
             'time': datetime.now().strftime("%d %b %Y %H:%M"),
             'category': 'Konfigurasi',
-            'event': f"Persyaratan administrasi {clinic} berhasil ditambahkan di Klinik SKEM",
+            'event': log_evt,
             'status': 'Berhasil',
             'status_class': 'green'
         })
+        db_save_system_log('Konfigurasi', log_evt, 'Berhasil', 'green')
         flash(f"Persyaratan administrasi untuk {clinic} berhasil ditambahkan.")
     return redirect(url_for('system.facilities'))
 
@@ -2316,6 +3445,7 @@ def edit_facility_req(index):
             'status': status,
             'status_class': 'green' if status == 'Aktif' else 'amber'
         })
+        db_save_requirement(REQUIREMENTS[index], req_id=REQUIREMENTS[index].get('id'))
         flash(f"Persyaratan {clinic} berhasil diperbarui.")
     return redirect(url_for('system.facilities'))
 
@@ -2323,6 +3453,7 @@ def edit_facility_req(index):
 def delete_facility_req(index):
     if 0 <= index < len(REQUIREMENTS):
         removed = REQUIREMENTS.pop(index)
+        db_delete_requirement(removed['clinic'])
         flash(f"Persyaratan untuk {removed['clinic']} berhasil dihapus.")
     return redirect(url_for('system.facilities'))
 
@@ -2351,7 +3482,7 @@ def add_user():
     role_label = role_labels.get(role, 'Petugas Klinik')
     new_id = f"U{len(USERS_DB) + 1:03d}"
 
-    USERS_DB[email] = {
+    new_user = {
         'id': new_id,
         'email': email,
         'password': password,
@@ -2365,6 +3496,8 @@ def add_user():
         'auth_provider': 'local',
         'avatar_url': None
     }
+    USERS_DB[email] = new_user
+    db_save_user(new_user)
 
     USERS_LIST.append({
         'username': email,
@@ -2375,13 +3508,15 @@ def add_user():
         'status_class': 'green'
     })
 
+    log_evt = f"Akun pengguna baru dibuat: {name} ({email})"
     SYSTEM_LOGS.insert(0, {
         'time': datetime.now().strftime("%d %b %Y %H:%M"),
         'category': 'Akun',
-        'event': f"Akun pengguna baru dibuat: {name} ({email})",
+        'event': log_evt,
         'status': 'Berhasil',
         'status_class': 'green'
     })
+    db_save_system_log('Akun', log_evt, 'Berhasil', 'green')
     flash(f"Akun pengguna {name} ({email}) berhasil dibuat.")
     return redirect(url_for('system.users'))
 
@@ -2393,13 +3528,16 @@ def toggle_user(username):
             new_status = u['status']
             if username in USERS_DB:
                 USERS_DB[username]['status'] = new_status
+            db_update_user_status(username, new_status)
+            log_evt = f"Status akun {username} diubah menjadi {new_status}"
             SYSTEM_LOGS.insert(0, {
                 'time': datetime.now().strftime("%d %b %Y %H:%M"),
                 'category': 'Akun',
-                'event': f"Status akun {username} diubah menjadi {new_status}",
+                'event': log_evt,
                 'status': 'Berhasil',
                 'status_class': 'green'
             })
+            db_save_system_log('Akun', log_evt, 'Berhasil', 'green')
             flash(f"Status akun {username} diubah menjadi {new_status}.")
             break
     return redirect(url_for('system.users'))
@@ -2421,20 +3559,25 @@ def add_service():
     status = request.form.get('status', 'Aktif').strip()
 
     if name:
-        SERVICES_LIST.append({
+        new_srv = {
             'name': name,
             'hospital': hospital or 'Klinik SKEM',
             'requirements': requirements,
             'status': status,
             'status_class': 'green' if status == 'Aktif' else 'amber'
-        })
+        }
+        SERVICES_LIST.append(new_srv)
+        db_save_service(new_srv)
+
+        log_evt = f"Layanan baru {name} ditambahkan di Klinik SKEM"
         SYSTEM_LOGS.insert(0, {
             'time': datetime.now().strftime("%d %b %Y %H:%M"),
             'category': 'Konfigurasi',
-            'event': f"Layanan baru {name} ditambahkan di Klinik SKEM",
+            'event': log_evt,
             'status': 'Berhasil',
             'status_class': 'green'
         })
+        db_save_system_log('Konfigurasi', log_evt, 'Berhasil', 'green')
         flash(f"Layanan {name} berhasil ditambahkan.")
     return redirect(url_for('system.services'))
 
@@ -2453,6 +3596,7 @@ def edit_service(index):
             'status': status,
             'status_class': 'green' if status == 'Aktif' else 'amber'
         })
+        db_save_service(SERVICES_LIST[index], srv_id=SERVICES_LIST[index].get('id'))
         flash(f"Layanan {name} berhasil diperbarui.")
     return redirect(url_for('system.services'))
 
@@ -2460,6 +3604,7 @@ def edit_service(index):
 def delete_service(index):
     if 0 <= index < len(SERVICES_LIST):
         removed = SERVICES_LIST.pop(index)
+        db_delete_service(removed['name'])
         flash(f"Layanan {removed['name']} berhasil dihapus.")
     return redirect(url_for('system.services'))
 

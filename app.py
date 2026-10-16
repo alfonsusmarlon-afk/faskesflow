@@ -58,14 +58,29 @@ def save_uploaded_document(file_obj, prefix='doc'):
         doc_type = 'image' if ext in ['png', 'jpg', 'jpeg', 'webp'] else ('pdf' if ext == 'pdf' else 'document')
         return {
             'document_url': f"/static/uploads/documents/{safe_filename}",
+            'url': f"/static/uploads/documents/{safe_filename}",
             'document_name': orig_name,
+            'name': orig_name,
             'document_filename': safe_filename,
             'document_type': doc_type,
+            'type': doc_type,
             'uploaded_at': datetime.now().strftime("%d %b %Y %H:%M")
         }
     except Exception as e:
         print(f"Error menyimpan file upload: {e}")
         return None
+
+def save_multiple_documents(file_list, prefix='doc'):
+    """Menyimpan beberapa berkas/foto dokumen sekaligus dan mengembalikan list objek dokumen."""
+    saved_docs = []
+    if not file_list:
+        return saved_docs
+    for f in file_list:
+        if f and getattr(f, 'filename', None) and f.filename.strip():
+            doc_info = save_uploaded_document(f, prefix=prefix)
+            if doc_info:
+                saved_docs.append(doc_info)
+    return saved_docs
 
 # ==============================================================================
 # KONFIGURASI GOOGLE OAUTH 2.0 (GOOGLE IDENTITY SERVICES & OAUTH REDIRECT)
@@ -603,9 +618,13 @@ def init_sqlite_db():
         "ALTER TABLE registrations ADD COLUMN document_url TEXT",
         "ALTER TABLE registrations ADD COLUMN document_name TEXT",
         "ALTER TABLE registrations ADD COLUMN document_type TEXT",
+        "ALTER TABLE registrations ADD COLUMN documents_json TEXT",
+        "ALTER TABLE reviews ADD COLUMN documents_json TEXT",
         "ALTER TABLE required_actions ADD COLUMN document_url TEXT",
         "ALTER TABLE required_actions ADD COLUMN document_name TEXT",
-        "ALTER TABLE required_actions ADD COLUMN document_type TEXT"
+        "ALTER TABLE required_actions ADD COLUMN document_type TEXT",
+        "ALTER TABLE required_actions ADD COLUMN documents_json TEXT",
+        "ALTER TABLE patients ADD COLUMN documents_json TEXT"
     ]:
         try:
             c.execute(sql)
@@ -643,6 +662,38 @@ def init_sqlite_db():
     conn.commit()
     conn.close()
 
+def ensure_documents_list(d):
+    """Memastikan atribut 'documents' bertipe list of dicts, mem-parse documents_json atau membungkus document_url."""
+    if d.get('documents_json'):
+        try:
+            docs = json.loads(d['documents_json'])
+            if isinstance(docs, list) and docs:
+                for item in docs:
+                    if 'url' not in item and 'document_url' in item:
+                        item['url'] = item['document_url']
+                    if 'document_url' not in item and 'url' in item:
+                        item['document_url'] = item['url']
+                    if 'name' not in item and 'document_name' in item:
+                        item['name'] = item['document_name']
+                    if 'document_name' not in item and 'name' in item:
+                        item['document_name'] = item['name']
+                d['documents'] = docs
+                return d
+        except Exception:
+            pass
+    if d.get('document_url'):
+        d['documents'] = [{
+            'url': d['document_url'],
+            'document_url': d['document_url'],
+            'name': d.get('document_name') or 'Berkas Pendaftaran',
+            'document_name': d.get('document_name') or 'Berkas Pendaftaran',
+            'type': d.get('document_type') or 'image',
+            'document_type': d.get('document_type') or 'image'
+        }]
+    else:
+        d['documents'] = []
+    return d
+
 def load_all_from_db():
     global USERS_DB, USERS_LIST, SAVED_PROFILES, PATIENTS, ACTIVE_REGISTRATIONS
     global REGISTRATION_HISTORY, REQUIRED_ACTIONS, QUEUE_LIST, QUEUE_STATE
@@ -675,13 +726,13 @@ def load_all_from_db():
         pat_rows = conn.execute("SELECT * FROM patients ORDER BY id ASC").fetchall()
         PATIENTS.clear()
         for r in pat_rows:
-            PATIENTS.append(dict(r))
+            PATIENTS.append(ensure_documents_list(dict(r)))
 
         reg_rows = conn.execute("SELECT * FROM registrations ORDER BY id DESC").fetchall()
         REGISTRATION_HISTORY.clear()
         ACTIVE_REGISTRATIONS.clear()
         for r in reg_rows:
-            item = dict(r)
+            item = ensure_documents_list(dict(r))
             item['id'] = item['code']
             item['service'] = item.get('clinic', 'Poli Umum')
             if not item.get('patient_id'):
@@ -695,7 +746,7 @@ def load_all_from_db():
         act_rows = conn.execute("SELECT * FROM required_actions ORDER BY created_at DESC").fetchall()
         REQUIRED_ACTIONS.clear()
         for r in act_rows:
-            REQUIRED_ACTIONS.append(dict(r))
+            REQUIRED_ACTIONS.append(ensure_documents_list(dict(r)))
 
         q_rows = conn.execute("SELECT * FROM queues ORDER BY id ASC").fetchall()
         QUEUE_LIST.clear()
@@ -711,7 +762,7 @@ def load_all_from_db():
         rev_rows = conn.execute("SELECT * FROM reviews ORDER BY id ASC").fetchall()
         REVIEW_LIST.clear()
         for r in rev_rows:
-            REVIEW_LIST.append(dict(r))
+            REVIEW_LIST.append(ensure_documents_list(dict(r)))
 
         rx_rows = conn.execute("SELECT * FROM prescriptions ORDER BY created_at DESC, id DESC").fetchall()
         PRESCRIPTIONS.clear()
@@ -820,17 +871,25 @@ def db_delete_profile(key):
 def db_save_patient(p):
     try:
         conn = get_db()
+        docs = p.get('documents') or []
+        docs_json = p.get('documents_json')
+        if not docs_json and docs:
+            docs_json = json.dumps(docs)
+        doc_url = p.get('document_url') or (docs[0].get('document_url') or docs[0].get('url') if docs else None)
+        doc_name = p.get('document_name') or (docs[0].get('document_name') or docs[0].get('name') if docs else None)
+        doc_type = p.get('document_type') or (docs[0].get('document_type') or docs[0].get('type') if docs else None)
         conn.execute("""
-            INSERT INTO patients (id, name, phone, date, service, finance, status, form, faskes2, ref_id, document_url, document_name, document_type)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO patients (id, name, phone, date, service, finance, status, form, faskes2, ref_id, document_url, document_name, document_type, documents_json)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET
                 name=excluded.name, phone=excluded.phone, date=excluded.date, service=excluded.service,
                 finance=excluded.finance, status=excluded.status, form=excluded.form, faskes2=excluded.faskes2, ref_id=excluded.ref_id,
-                document_url=excluded.document_url, document_name=excluded.document_name, document_type=excluded.document_type
+                document_url=excluded.document_url, document_name=excluded.document_name, document_type=excluded.document_type,
+                documents_json=excluded.documents_json
         """, (
             p.get('id'), p.get('name'), p.get('phone', ''), p.get('date', ''), p.get('service', 'Poli Umum'),
             p.get('finance', 'Mandiri'), p.get('status', 'Terdaftar'), p.get('form', ''), p.get('faskes2'), p.get('ref_id'),
-            p.get('document_url'), p.get('document_name'), p.get('document_type')
+            doc_url, doc_name, doc_type, docs_json
         ))
         conn.commit()
         conn.close()
@@ -841,21 +900,29 @@ def db_save_registration(reg):
     try:
         code = reg.get('code') or reg.get('id')
         conn = get_db()
+        docs = reg.get('documents') or []
+        docs_json = reg.get('documents_json')
+        if not docs_json and docs:
+            docs_json = json.dumps(docs)
+        doc_url = reg.get('document_url') or (docs[0].get('document_url') or docs[0].get('url') if docs else None)
+        doc_name = reg.get('document_name') or (docs[0].get('document_name') or docs[0].get('name') if docs else None)
+        doc_type = reg.get('document_type') or (docs[0].get('document_type') or docs[0].get('type') if docs else None)
         conn.execute("""
-            INSERT INTO registrations (code, user_email, patient_name, patient_id, clinic, date, finance, status, status_class, hospital, target_faskes, target_clinic, ref_id, document_url, document_name, document_type)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO registrations (code, user_email, patient_name, patient_id, clinic, date, finance, status, status_class, hospital, target_faskes, target_clinic, ref_id, document_url, document_name, document_type, documents_json)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(code) DO UPDATE SET
                 patient_name=excluded.patient_name, patient_id=excluded.patient_id, clinic=excluded.clinic, date=excluded.date,
                 finance=excluded.finance, status=excluded.status, status_class=excluded.status_class, hospital=excluded.hospital,
                 target_faskes=excluded.target_faskes, target_clinic=excluded.target_clinic, ref_id=excluded.ref_id,
-                document_url=excluded.document_url, document_name=excluded.document_name, document_type=excluded.document_type
+                document_url=excluded.document_url, document_name=excluded.document_name, document_type=excluded.document_type,
+                documents_json=excluded.documents_json
         """, (
             code, reg.get('user_email', ''), reg.get('patient_name', ''), reg.get('patient_id', ''),
             reg.get('clinic') or reg.get('service', 'Poli Umum'), reg.get('date', ''),
             reg.get('finance', 'Mandiri'),
             reg.get('status', 'Menunggu verifikasi'), reg.get('status_class', 'blue'), reg.get('hospital', 'Klinik SKEM'),
             reg.get('target_faskes'), reg.get('target_clinic'), reg.get('ref_id'),
-            reg.get('document_url'), reg.get('document_name'), reg.get('document_type')
+            doc_url, doc_name, doc_type, docs_json
         ))
         conn.commit()
         conn.close()
@@ -890,17 +957,25 @@ def db_update_registration_status(code, status, status_class, hospital=None, tar
 def db_save_required_action(action):
     try:
         conn = get_db()
+        docs = action.get('documents') or []
+        docs_json = action.get('documents_json')
+        if not docs_json and docs:
+            docs_json = json.dumps(docs)
+        doc_url = action.get('document_url') or (docs[0].get('document_url') or docs[0].get('url') if docs else None)
+        doc_name = action.get('document_name') or (docs[0].get('document_name') or docs[0].get('name') if docs else None)
+        doc_type = action.get('document_type') or (docs[0].get('document_type') or docs[0].get('type') if docs else None)
         conn.execute("""
-            INSERT INTO required_actions (code, title, service, patient_name, patient_id, reason, user_email, document_url, document_name, document_type)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO required_actions (code, title, service, patient_name, patient_id, reason, user_email, document_url, document_name, document_type, documents_json)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(code) DO UPDATE SET
                 title=excluded.title, service=excluded.service, patient_name=excluded.patient_name,
                 patient_id=excluded.patient_id, reason=excluded.reason, user_email=excluded.user_email,
-                document_url=excluded.document_url, document_name=excluded.document_name, document_type=excluded.document_type
+                document_url=excluded.document_url, document_name=excluded.document_name, document_type=excluded.document_type,
+                documents_json=excluded.documents_json
         """, (
             action.get('code'), action.get('title'), action.get('service'), action.get('patient_name'),
             action.get('patient_id'), action.get('reason'), action.get('user_email', ''),
-            action.get('document_url'), action.get('document_name'), action.get('document_type')
+            doc_url, doc_name, doc_type, docs_json
         ))
         conn.commit()
         conn.close()
@@ -967,17 +1042,25 @@ def db_save_queue_state():
 def db_save_review(r):
     try:
         conn = get_db()
+        docs = r.get('documents') or []
+        docs_json = r.get('documents_json')
+        if not docs_json and docs:
+            docs_json = json.dumps(docs)
+        doc_url = r.get('document_url') or (docs[0].get('document_url') or docs[0].get('url') if docs else None)
+        doc_name = r.get('document_name') or (docs[0].get('document_name') or docs[0].get('name') if docs else None)
+        doc_type = r.get('document_type') or (docs[0].get('document_type') or docs[0].get('type') if docs else None)
         conn.execute("""
-            INSERT INTO reviews (id, patient_id, patient_name, source, service, readiness, status_class, reason, document_url, document_name, document_type)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO reviews (id, patient_id, patient_name, source, service, readiness, status_class, reason, document_url, document_name, document_type, documents_json)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET
                 patient_id=excluded.patient_id, patient_name=excluded.patient_name, source=excluded.source,
                 service=excluded.service, readiness=excluded.readiness, status_class=excluded.status_class, reason=excluded.reason,
-                document_url=excluded.document_url, document_name=excluded.document_name, document_type=excluded.document_type
+                document_url=excluded.document_url, document_name=excluded.document_name, document_type=excluded.document_type,
+                documents_json=excluded.documents_json
         """, (
             r.get('id'), r.get('patient_id'), r.get('patient_name'), r.get('source', 'Online'),
             r.get('service', 'Poli Umum'), r.get('readiness', 'Perlu diperiksa'), r.get('status_class', 'amber'), r.get('reason'),
-            r.get('document_url'), r.get('document_name'), r.get('document_type')
+            doc_url, doc_name, doc_type, docs_json
         ))
         conn.commit()
         conn.close()
@@ -2029,16 +2112,23 @@ def register():
 
         new_code = f"FF-{len(REGISTRATION_HISTORY) + 155}"
 
-        # Simpan berkas dokumen pendukung jika ada
-        doc_info = None
+        # Simpan berkas dokumen pendukung (mendukung upload multi-berkas)
+        files_to_save = []
+        if 'supporting_documents' in request.files:
+            files_to_save.extend(request.files.getlist('supporting_documents'))
         if 'supporting_document' in request.files:
-            file_obj = request.files['supporting_document']
-            if file_obj and file_obj.filename:
-                doc_info = save_uploaded_document(file_obj, prefix=new_code.replace('-', ''))
+            files_to_save.extend(request.files.getlist('supporting_document'))
 
-        doc_url = doc_info['document_url'] if doc_info else None
-        doc_name = doc_info['document_name'] if doc_info else None
-        doc_type = doc_info['document_type'] if doc_info else None
+        uploaded_docs = save_multiple_documents(files_to_save, prefix=new_code.replace('-', ''))
+        doc_url = uploaded_docs[0]['url'] if uploaded_docs else None
+        if len(uploaded_docs) > 1:
+            doc_name = f"{uploaded_docs[0]['name']} (+{len(uploaded_docs)-1} berkas lainnya)"
+        elif len(uploaded_docs) == 1:
+            doc_name = uploaded_docs[0]['name']
+        else:
+            doc_name = None
+        doc_type = uploaded_docs[0]['type'] if uploaded_docs else None
+        docs_json = json.dumps(uploaded_docs) if uploaded_docs else None
 
         patient_id = f"P{len(PATIENTS) + 1:03d}"
         finance_choice = request.form.get('payment_method', 'Mandiri')
@@ -2056,7 +2146,9 @@ def register():
             'user_email': user_email,
             'document_url': doc_url,
             'document_name': doc_name,
-            'document_type': doc_type
+            'document_type': doc_type,
+            'documents': uploaded_docs,
+            'documents_json': docs_json
         }
         ACTIVE_REGISTRATIONS.insert(0, new_reg)
         REGISTRATION_HISTORY.insert(0, {
@@ -2073,7 +2165,9 @@ def register():
             'user_email': user_email,
             'document_url': doc_url,
             'document_name': doc_name,
-            'document_type': doc_type
+            'document_type': doc_type,
+            'documents': uploaded_docs,
+            'documents_json': docs_json
         })
         new_rev = {
             'id': new_code,
@@ -2085,7 +2179,9 @@ def register():
             'status_class': 'amber',
             'document_url': doc_url,
             'document_name': doc_name,
-            'document_type': doc_type
+            'document_type': doc_type,
+            'documents': uploaded_docs,
+            'documents_json': docs_json
         }
         REVIEW_LIST.insert(0, new_rev)
         new_pat = {
@@ -2099,7 +2195,9 @@ def register():
             'form': new_code,
             'document_url': doc_url,
             'document_name': doc_name,
-            'document_type': doc_type
+            'document_type': doc_type,
+            'documents': uploaded_docs,
+            'documents_json': docs_json
         }
         PATIENTS.insert(0, new_pat)
 
@@ -2107,16 +2205,17 @@ def register():
         db_save_review(new_rev)
         db_save_patient(new_pat)
 
+        doc_log_suffix = f" [{len(uploaded_docs)} Berkas Dokumen]" if uploaded_docs else ""
         SYSTEM_LOGS.insert(0, {
             'time': datetime.now().strftime("%d %b %Y %H:%M"),
             'category': 'Pendaftaran',
-            'event': f"Pendaftaran {new_code} untuk {patient_name} ({service}) diajukan ke Klinik SKEM" + (f" [Berkas: {doc_name}]" if doc_name else ""),
+            'event': f"Pendaftaran {new_code} untuk {patient_name} ({service}) diajukan ke Klinik SKEM{doc_log_suffix}",
             'status': 'Berhasil',
             'status_class': 'green'
         })
-        db_save_system_log('Pendaftaran', f"Pendaftaran {new_code} untuk {patient_name} ({service}) diajukan ke Klinik SKEM", 'Berhasil', 'green')
+        db_save_system_log('Pendaftaran', f"Pendaftaran {new_code} untuk {patient_name} ({service}) diajukan ke Klinik SKEM{doc_log_suffix}", 'Berhasil', 'green')
 
-        flash(f"Pendaftaran {patient_name} untuk {service} di Klinik SKEM berhasil diajukan!" + (" Dokumen pendukung berhasil diunggah." if doc_name else ""))
+        flash(f"Pendaftaran {patient_name} untuk {service} di Klinik SKEM berhasil diajukan!" + (f" ({len(uploaded_docs)} dokumen pendukung berhasil diunggah)." if uploaded_docs else ""))
         return redirect(url_for('patient.home'))
 
     if not my_profiles:
@@ -2158,16 +2257,36 @@ def upload_action():
     code = request.form.get('code', 'FF-0148').strip()
     notes = request.form.get('notes', '').strip()
 
-    # Simpan berkas perbaikan jika diunggah
-    doc_info = None
+    # Simpan berkas perbaikan (mendukung multi-upload)
+    files_to_save = []
+    if 'document_files' in request.files:
+        files_to_save.extend(request.files.getlist('document_files'))
     if 'document_file' in request.files:
-        file_obj = request.files['document_file']
-        if file_obj and file_obj.filename:
-            doc_info = save_uploaded_document(file_obj, prefix=f"fix_{code.replace('-', '')}")
+        files_to_save.extend(request.files.getlist('document_file'))
 
-    doc_url = doc_info['document_url'] if doc_info else None
-    doc_name = doc_info['document_name'] if doc_info else None
-    doc_type = doc_info['document_type'] if doc_info else None
+    new_docs = save_multiple_documents(files_to_save, prefix=f"fix_{code.replace('-', '')}")
+
+    existing_docs = []
+    for reg in ACTIVE_REGISTRATIONS:
+        if reg.get('code') == code and reg.get('documents'):
+            existing_docs = list(reg.get('documents'))
+            break
+    if not existing_docs:
+        for r in REVIEW_LIST:
+            if r.get('id') == code and r.get('documents'):
+                existing_docs = list(r.get('documents'))
+                break
+
+    combined_docs = existing_docs + new_docs if new_docs else existing_docs
+    doc_url = combined_docs[0]['url'] if combined_docs else None
+    if len(combined_docs) > 1:
+        doc_name = f"{combined_docs[0]['name']} (+{len(combined_docs)-1} berkas lainnya)"
+    elif len(combined_docs) == 1:
+        doc_name = combined_docs[0]['name']
+    else:
+        doc_name = None
+    doc_type = combined_docs[0]['type'] if combined_docs else None
+    docs_json = json.dumps(combined_docs) if combined_docs else None
 
     # 1. Hapus dari REQUIRED_ACTIONS pasien
     REQUIRED_ACTIONS[:] = [a for a in REQUIRED_ACTIONS if a.get('code') != code]
@@ -2178,10 +2297,12 @@ def upload_action():
         if reg.get('code') == code:
             reg['status'] = 'Menunggu verifikasi ulang'
             reg['status_class'] = 'blue'
-            if doc_url:
+            if combined_docs:
                 reg['document_url'] = doc_url
                 reg['document_name'] = doc_name
                 reg['document_type'] = doc_type
+                reg['documents'] = combined_docs
+                reg['documents_json'] = docs_json
             db_save_registration(reg)
 
     # 3. Update status di REVIEW_LIST petugas klinik
@@ -2189,20 +2310,24 @@ def upload_action():
         if r.get('id') == code:
             r['readiness'] = 'Menunggu verifikasi ulang'
             r['status_class'] = 'blue'
-            if doc_url:
+            if combined_docs:
                 r['document_url'] = doc_url
                 r['document_name'] = doc_name
                 r['document_type'] = doc_type
+                r['documents'] = combined_docs
+                r['documents_json'] = docs_json
             db_save_review(r)
 
     # 4. Update status di PATIENTS
     for p in PATIENTS:
         if p.get('form') == code:
             p['status'] = 'Menunggu verifikasi ulang'
-            if doc_url:
+            if combined_docs:
                 p['document_url'] = doc_url
                 p['document_name'] = doc_name
                 p['document_type'] = doc_type
+                p['documents'] = combined_docs
+                p['documents_json'] = docs_json
             db_save_patient(p)
 
     # 5. Update di REGISTRATION_HISTORY
@@ -2210,10 +2335,12 @@ def upload_action():
         if h.get('id') == code:
             h['status'] = 'Menunggu verifikasi ulang'
             h['status_class'] = 'blue'
-            if doc_url:
+            if combined_docs:
                 h['document_url'] = doc_url
                 h['document_name'] = doc_name
                 h['document_type'] = doc_type
+                h['documents'] = combined_docs
+                h['documents_json'] = docs_json
             db_save_registration(h)
 
     db_update_registration_status(code, 'Menunggu verifikasi ulang', 'blue')
@@ -2507,6 +2634,10 @@ def request_fix(form_id):
     doc_url = matched.get('document_url') if matched else None
     doc_name = matched.get('document_name') if matched else None
     doc_type = matched.get('document_type') if matched else None
+    docs = matched.get('documents') or [] if matched else []
+    docs_json = matched.get('documents_json') if matched else None
+    if not docs_json and docs:
+        docs_json = json.dumps(docs)
 
     # 1. Tambahkan atau update di REQUIRED_ACTIONS agar muncul di portal pasien
     target_email = find_patient_email(patient_name=patient_name, patient_id=patient_id, form_id=form_id)
@@ -2522,7 +2653,9 @@ def request_fix(form_id):
             'user_email': target_email,
             'document_url': doc_url,
             'document_name': doc_name,
-            'document_type': doc_type
+            'document_type': doc_type,
+            'documents': docs,
+            'documents_json': docs_json
         }
         REQUIRED_ACTIONS.insert(0, new_act)
         db_save_required_action(new_act)
@@ -2534,6 +2667,9 @@ def request_fix(form_id):
             action_item['document_url'] = doc_url
             action_item['document_name'] = doc_name
             action_item['document_type'] = doc_type
+        if docs:
+            action_item['documents'] = docs
+            action_item['documents_json'] = docs_json
         db_save_required_action(action_item)
 
     # 2. Update status di ACTIVE_REGISTRATIONS pasien
@@ -3317,12 +3453,7 @@ def reset_queue():
 
 @system_bp.route('/facilities')
 def facilities():
-    return render_template(
-        'system/facilities.html',
-        active_page='facilities',
-        requirements=REQUIREMENTS,
-        patients=PATIENTS
-    )
+    return redirect(url_for('system.services'))
 
 @system_bp.route('/partners')
 def partners():

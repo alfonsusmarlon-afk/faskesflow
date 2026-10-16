@@ -83,9 +83,21 @@
           <option value="BPJS Demo">BPJS Demo</option>
         </select>
       </div>
-      <div class="field">
-        <label for="regDoc">Dokumen pendukung</label>
-        <input id="regDoc" name="supporting_document" type="file">
+      <div class="field wide">
+        <label for="regDoc">Dokumen Pendukung Tambahan (Dapat memilih lebih dari 1 berkas)</label>
+        <div style="background:var(--bg-light); border:1.5px dashed var(--border-color); border-radius:12px; padding:16px; text-align:center; transition:border-color 0.2s;" id="dropzoneContainer">
+          <input id="regDoc" name="supporting_documents" type="file" multiple accept="image/*,.pdf" style="display:none;" onchange="handleFileSelect(this)">
+          <div style="display:flex; flex-direction:column; align-items:center; gap:8px;">
+            <div style="font-size:24px;">📁</div>
+            <div style="font-size:14px; font-weight:600; color:var(--text-main);">Pilih Berkas atau Tarik ke Sini</div>
+            <div style="font-size:12px; color:var(--text-muted);">Mendukung banyak berkas sekaligus: KTP, BPJS, Surat Rujukan, Hasil Lab, Rekam Medis (JPG, PNG, PDF)</div>
+            <button type="button" class="btn secondary sm" onclick="document.getElementById('regDoc').click()" style="margin-top:4px;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              Jelajahi Berkas Dokumen
+            </button>
+          </div>
+          <div id="fileListPreview" style="margin-top:14px; display:none; flex-wrap:wrap; gap:8px; justify-content:flex-start;"></div>
+        </div>
       </div>
       <div class="field wide">
         <label for="regNotes">Catatan administrasi</label>
@@ -162,6 +174,26 @@ const pForm = document.getElementById('patientForm');
 if(pForm){
   pForm.addEventListener('submit', () => {
     localStorage.removeItem('rs_sentosa_patient_draft');
+  });
+}
+
+function handleFileSelect(input) {
+  const container = document.getElementById('fileListPreview');
+  if(!container) return;
+  container.innerHTML = '';
+  if (!input.files || input.files.length === 0) {
+    container.style.display = 'none';
+    return;
+  }
+  container.style.display = 'flex';
+  Array.from(input.files).forEach((file) => {
+    const isPdf = file.name.toLowerCase().endsWith('.pdf');
+    const badge = document.createElement('div');
+    badge.style.cssText = 'background:var(--card-bg, #fff); border:1px solid var(--border-color); border-radius:8px; padding:6px 12px; display:inline-flex; align-items:center; gap:8px; font-size:12px; box-shadow:0 1px 3px rgba(0,0,0,0.05);';
+    const icon = isPdf ? '📄' : '🖼️';
+    const sizeKb = (file.size / 1024).toFixed(1);
+    badge.innerHTML = `<span>${icon}</span><span style="font-weight:600; max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${file.name}</span><span style="color:var(--text-muted); font-size:11px;">(${sizeKb} KB)</span>`;
+    container.appendChild(badge);
   });
 }
 </script>

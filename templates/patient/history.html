@@ -41,7 +41,13 @@
           </td>
           <td>
             <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-              {% if h.document_url %}
+              {% if h.documents and h.documents|length > 0 %}
+                {% for doc in h.documents %}
+                <a href="{{ doc.url | default(doc.document_url) }}" target="_blank" class="btn" style="padding:4px 8px;font-size:12px;display:inline-flex;align-items:center;gap:4px;" title="{{ doc.name | default(doc.document_name) }}">
+                  {% if (doc.type | default(doc.document_type)) == 'pdf' %}📄{% else %}🖼️{% endif %} <span style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ doc.name | default(doc.document_name) | default('Berkas') }}</span>
+                </a>
+                {% endfor %}
+              {% elif h.document_url %}
               <a href="{{ h.document_url }}" target="_blank" class="btn" style="padding:4px 8px;font-size:12px;display:inline-flex;align-items:center;gap:3px;" title="{{ h.document_name }}">
                 📎 Berkas
               </a>
@@ -56,6 +62,7 @@
                 data-status="{{ h.status }}"
                 data-finance="{{ h.finance | default('Mandiri') }}"
                 data-doc-name="{{ h.document_name | default('') }}"
+                data-docs='{{ h.documents | default([]) | tojson | forceescape }}'
                 data-ref="{{ h.ref_id | default('') }}"
                 data-target="{{ h.target_faskes | default('') }}"
                 style="padding:4px 8px;font-size:12px;display:inline-flex;align-items:center;gap:4px;">

@@ -1038,8 +1038,7 @@ h4, h5, h6 {
       {% elif current_role == 'system' %}
         <a href="{{ url_for('system.dashboard') }}" class="{% if active_page == 'dashboard' %}active{% endif %}">Dashboard</a>
         <a href="{{ url_for('system.users') }}" class="{% if active_page == 'users' %}active{% endif %}">Akun & akses</a>
-        <a href="{{ url_for('system.services') }}" class="{% if active_page == 'services' %}active{% endif %}">Poli & layanan</a>
-        <a href="{{ url_for('system.facilities') }}" class="{% if active_page == 'facilities' %}active{% endif %}">Persyaratan</a>
+        <a href="{{ url_for('system.services') }}" class="{% if active_page in ['services', 'facilities'] %}active{% endif %}">Layanan & persyaratan</a>
         <a href="{{ url_for('system.partners') }}" class="{% if active_page == 'partners' %}active{% endif %}">Mitra faskes</a>
         <a href="{{ url_for('system.logs') }}" class="{% if active_page == 'logs' %}active{% endif %}">Log aktivitas</a>
       {% endif %}
@@ -1149,8 +1148,8 @@ h4, h5, h6 {
     <a href="{{ url_for('system.users') }}" class="{% if active_page == 'users' %}active{% endif %}">
       <span class="mob-icon">👥</span><span>Akun</span>
     </a>
-    <a href="{{ url_for('system.facilities') }}" class="{% if active_page == 'facilities' %}active{% endif %}">
-      <span class="mob-icon">📋</span><span>Syarat</span>
+    <a href="{{ url_for('system.services') }}" class="{% if active_page in ['services', 'facilities'] %}active{% endif %}">
+      <span class="mob-icon">🏥</span><span>Layanan</span>
     </a>
     <a href="{{ url_for('system.partners') }}" class="{% if active_page == 'partners' %}active{% endif %}">
       <span class="mob-icon">🤝</span><span>Mitra</span>
@@ -1393,11 +1392,27 @@ function printForm(formId, btnEl){
             <th>Status Administrasi</th>
             <td><b>${p.status || 'Terverifikasi'}</b></td>
           </tr>
-          ${p.document_name ? `
-          <tr>
-            <th>Dokumen Terlampir</th>
-            <td colspan="3">📎 ${p.document_name} (Terverifikasi Sistem)</td>
-          </tr>` : ''}
+          ${(() => {
+            let docs = [];
+            if (p && Array.isArray(p.documents) && p.documents.length) {
+              docs = p.documents;
+            } else if (btnEl && btnEl.dataset.docs) {
+              try { docs = JSON.parse(btnEl.dataset.docs); } catch(e){}
+            }
+            if (docs && docs.length > 0) {
+              const listNames = docs.map((d, i) => `${i+1}. ${d.name || d.document_name || 'Berkas'}`).join(', ');
+              return `<tr>
+                <th>Dokumen Terlampir (${docs.length})</th>
+                <td colspan="3">📎 ${listNames} (Terverifikasi Sistem)</td>
+              </tr>`;
+            } else if (p.document_name) {
+              return `<tr>
+                <th>Dokumen Terlampir</th>
+                <td colspan="3">📎 ${p.document_name} (Terverifikasi Sistem)</td>
+              </tr>`;
+            }
+            return '';
+          })()}
           ${p.target_faskes ? `
           <tr>
             <th>Rujukan Faskes Lanjutan</th>

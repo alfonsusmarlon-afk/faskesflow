@@ -32,6 +32,19 @@ Sistem Administrasi Pasien, Manajemen Antrean, Verifikasi Berkas, dan Rujukan Te
 - **Autentikasi:** Session-based Authentication & Dukungan Google Identity Services (OAuth 2.0)
 - **State Management:** In-memory operational store & realtime client polling API
 
+## LOGIN WEBSITE
+pasien
+-username : pasien@local
+-password : password123
+
+petugas faskes
+-username : petugas@local
+-password : password123
+
+admin
+-username : admin@local
+-password : password123
+
 ## 💻 Cara Menjalankan Aplikasi
 
 1. **Clone repository:**
